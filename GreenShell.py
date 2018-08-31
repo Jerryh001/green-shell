@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import importlib
 import logging
-
+import kekekekeyworddetector.kwdetector as kd
 import kekekemonitor as km
 
 TOKEN="NDgzMjQxMTQzODM2OTk5Njkx.DmQmDg.9YVzFdm_zE3ulbKCN1YULe_phlA"
@@ -12,12 +12,18 @@ bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
 @bot.event
 async def on_ready():
     logging.info("Logged in as {0.user.name}({0.user.id})".format(bot))
+    await bot.get_channel(483242913807990806).send(bot.user.name+" is ONLINE now")
 
 @bot.event
 async def on_message(message:discord.Message):
     if await bot.is_owner(message.author) and message.channel.id==483242913807990806:
         await bot.process_commands(message)
        
+@bot.command()
+async def kekeke(ctx):
+    detector=kd.KWDetector(bot.get_channel(483268806072991794))
+    await detector.PeriodRun(30)
+
 
 @bot.command()
 async def moniter(ctx,kchannel:str):

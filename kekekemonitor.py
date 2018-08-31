@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import json
-import pytz
 import re
 from datetime import datetime
 from datetime import timezone
@@ -11,12 +10,6 @@ import discord
 from discord.ext import commands
 
 class Message(object):
-    time:datetime
-    ID:int
-    nickname:str
-    content:str
-    extra:str
-
     def __init__(self,time:datetime=datetime.now(),ID:int=0,nickname:str="",content:str="",extra:str=""):
         self.time=time
         self.ID=ID
@@ -28,10 +21,7 @@ class KekekeMonitor(object):
     _url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     _payload = r"7|0|6|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getLeftMessages|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|6|"
-    channel:str
     _last_time:datetime=None
-    _log:logging.Logger
-    stdout=None
     def __init__(self,channel:str,bot:commands.Bot,stdout_id:int):
         self.channel=channel
         self.stdout=bot.get_channel(stdout_id)
@@ -50,9 +40,8 @@ class KekekeMonitor(object):
                 if message_raw[0]!='{':
                     break
                 message=json.loads(message_raw)
-                tz=tzlocal.get_localzone()
                 ts=datetime.fromtimestamp(int(message["date"])/1000)
-                message_time=tz.localize(ts)
+                message_time=tzlocal.get_localzone().localize(ts)
                 if start_from is not None and start_from>=message_time:
                     break
                 ex=re.search(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',message["content"], re.IGNORECASE)
@@ -77,7 +66,7 @@ class KekekeMonitor(object):
         for message in reversed(data):
             embed=discord.Embed(description=message.content,timestamp=message.time)
             embed.set_footer(text="kekeke.cc/"+self.channel)
-            embed.set_author(name=message.ID[:5]+"@"+message.nickname)
+            embed.set_author(name=message.ID[:5]+"@"+message.nickname,url=message.ID)
             self._last_time=message.time
             if re.search(r".(jp[e]?g|png|gif)$",message.extra,re.IGNORECASE):
                 embed.set_image(url=message.extra)
