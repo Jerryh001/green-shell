@@ -12,7 +12,7 @@ possible_name=["微光閃耀"]
 possible_message=["HanG","BFD","Jerryh001"]
 possible_exact_message=["是"]
 
-possible_keyword=["@","GS","Glimmer Sparkle","GlimmerSparkle","Glimmer-Sparkle","小馬","pony","MLP"]
+possible_keyword=["GS","Glimmer Sparkle","GlimmerSparkle","Glimmer-Sparkle","小馬","pony","MLP"]
 
 trusted_user={
     "Jerryh001":["3b0f2a3a8a2a35a9c9727f188772ba095b239668"],
