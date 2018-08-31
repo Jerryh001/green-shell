@@ -57,6 +57,7 @@ class KekekeMonitor(object):
                     break
                 ex=re.search(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',message["content"], re.IGNORECASE)
                 m_output=Message(time=message_time,ID=message["senderPublicId"],nickname=message["senderNickName"],content=message["content"])
+                self._log.debug(m_output)
                 if ex:
                     m_output.extra=ex.group(0)
                 ans.append(m_output)
