@@ -66,9 +66,9 @@ class KekekeMonitor(object):
         else:
             self._log.warning("Parse messages from channel "+self.channel+" failed, response:"+resp[:4])
         if ans:
-            self._log.info("Get messages from channel "+self.channel+" successed")
+            self._log.debug("Get messages from channel "+self.channel+" successed")
         else:
-            self._log.info("Get messages from channel "+self.channel+" successed, but it's empty")
+            self._log.debug("Get messages from channel "+self.channel+" successed, but it's empty")
         return ans
 
     async def SendReport(self,data:list):

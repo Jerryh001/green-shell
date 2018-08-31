@@ -32,7 +32,7 @@ async def hi(ctx):
 async def cmd(ctx, *, cmd:str):
     try:
         ret=eval(cmd)
-        logging.info("eval({0}) successed ,return:\n{1}".format(cmd,ret))
+        logging.debug("eval({0}) successed ,return:\n{1}".format(cmd,ret))
         await ctx.send("`{0}`".format(ret))
     except:
         logging.warning("eval({0}) failed".format(cmd))
@@ -44,7 +44,7 @@ async def loglevel(ctx, level:str,logger_name:str="" ):
         logger=logging.getLogger(logger_name)
         level_old=logger.level
         logger.setLevel(eval("logging."+level.upper()))
-        logging.info("logger {0} 's level changed from {1} to {0.level}({2})".format(logger,level_old,level.upper()))
+        logging.debug("logger {0} 's level changed from {1} to {0.level}({2})".format(logger,level_old,level.upper()))
         await ctx.send("change success")
     except:
         logging.warning("change {0}'s level to {1} failed".format(logger,level))
