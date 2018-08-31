@@ -141,7 +141,7 @@ class KWDetector(object):
     async def SendReport(self,data:list):
         if not data:
             return
-        embed=discord.Embed(timestamp=datetime.now())
+        embed=discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()))
         embed.set_footer(text="kekeke.cc")
         for board in data:
             embed_content="<https://kekeke.cc/"+board.name+">\n\n"
