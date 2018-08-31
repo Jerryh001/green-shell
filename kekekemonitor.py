@@ -5,6 +5,7 @@ import pytz
 import re
 from datetime import datetime
 from datetime import timezone
+import tzlocal
 import logging
 import discord
 from discord.ext import commands
@@ -49,7 +50,7 @@ class KekekeMonitor(object):
                 if message_raw[0]!='{':
                     break
                 message=json.loads(message_raw)
-                tz=pytz.timezone("Asia/Taipei")
+                tz=tzlocal.get_localzone()
                 ts=datetime.fromtimestamp(int(message["date"])/1000)
                 message_time=tz.localize(ts)
                 if start_from is not None and start_from>=message_time:

@@ -11,9 +11,7 @@ bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
 
 @bot.event
 async def on_ready():
-    print('Logged in as '+bot.user.name)
-    print(bot.user.id)
-    print('------')
+    logging.info("Logged in as {0.user.name}({0.user.id})".format(bot))
 
 @bot.event
 async def on_message(message:discord.Message):
