@@ -175,7 +175,6 @@ class KWDetector(object):
                 embed_content+="\n"
             embed_content+="====================\n"
             embed.add_field(name=board.name,value=embed_content,inline=False)
-        print("send")
         await self.stdout.send(embed=embed)
 
     async def PeriodRun(self,period:int):

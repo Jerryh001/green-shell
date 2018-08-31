@@ -57,7 +57,7 @@ async def loglevel(ctx, level:str,logger_name:str="" ):
         await ctx.send("change failed")
 
 if __name__=="__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARNING)
     bot.remove_command('help')
 
     bot.run(TOKEN)
