@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import importlib
 import logging
+import os
 import kwdetector as kd
 import kekekemonitor as km
 
@@ -66,6 +67,30 @@ async def loglevel(ctx, level:str,logger_name:str="" ):
     except:
         logging.warning("change {0}'s level to {1} failed".format(logger,level))
         await ctx.send("change failed")
+
+@bot.command()
+async def download(ctx,message_id:int,target:str=None):
+    message:discord.Message
+    try:
+        message=await ctx.get_message(message_id)
+    except discord.NotFound:
+        #not found
+        return
+    if not message.attachments:
+        #no attach
+        return
+    if not target:
+        target="data/"
+    dirname = os.path.dirname(__file__)
+    filename = os.path.join(dirname, target+message.attachments[0].filename)
+    try:
+        await message.attachments[0].save(filename)
+        await ctx.send("save "+filename+" successful")
+    except:
+        await ctx.send("save "+filename+" failed")
+        pass #fail
+
+
 
 if __name__=="__main__":
     logging.basicConfig(level=logging.WARNING)
