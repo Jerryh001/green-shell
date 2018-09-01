@@ -94,9 +94,8 @@ class KWDetector(object):
     def __init__(self,stdout):
         self.stdout=stdout
         self._log=logging.getLogger(self.__class__.__name__)
-        self.JsonLoad()
 
-    def JsonLoad(self):
+    def KeywordLoad(self):
         dirname = path.dirname(__file__)
         self._keyword_list=json.load(open(path.join(dirname, "data/keyword.json"), 'r',encoding='utf8'))
         self._trusted_list=json.load(open(path.join(dirname, "data/trusted_user.json"), 'r',encoding='utf8'))
@@ -107,6 +106,7 @@ class KWDetector(object):
         except:
             self._log.error("Fetch kekeke HP failed")
         if resp[:4]==r"//OK":
+            self.KeywordLoad()
             data=json.loads(resp[4:])[-3]
             output=[]
             curr_channel=Channel()
