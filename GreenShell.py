@@ -25,10 +25,10 @@ async def kekeke(ctx):
     detector=kd.KWDetector(bot.get_channel(483268806072991794))
     try:
         await detector.PeriodRun(30)
-        ctx.send("stopped kekeke HP moniter")
+        await ctx.send("stopped kekeke HP moniter")
     except:
         logging.error("moniter kekeke HP stopped unexcept")
-        ctx.send("moniter kekeke HP stopped unexcept")
+        await ctx.send("moniter kekeke HP stopped unexcept")
 
 
 @bot.command()
@@ -36,10 +36,10 @@ async def moniter(ctx,kchannel:str):
     monitor=km.KekekeMonitor(kchannel,bot,483925945494011906)
     try:
         await monitor.PeriodRun(30)
-        ctx.send("stopped "+kchannel+" moniter")
+        await ctx.send("stopped "+kchannel+" moniter")
     except:
         logging.error("moniter "+kchannel+" stopped unexcept")
-        ctx.send("moniter "+kchannel+" stopped unexcept")
+        await ctx.send("moniter "+kchannel+" stopped unexcept")
     
 
 @bot.command()
