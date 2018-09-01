@@ -17,7 +17,7 @@ async def on_ready():
 
 @bot.event
 async def on_message(message:discord.Message):
-    if await bot.is_owner(message.author) and message.channel.id==483242913807990806:
+    if await (bot.is_owner(message.author) or message.author==bot.user) and message.channel.id==483242913807990806:
         await bot.process_commands(message)
        
 @bot.command()
@@ -72,7 +72,7 @@ async def loglevel(ctx, level:str,logger_name:str="" ):
 async def download(ctx,message_id:int,target:str=None):
     message:discord.Message
     try:
-        message=await ctx.get_message(message_id)
+        message=await bot.get_channel(485322302603657218).get_message(message_id)
     except discord.NotFound:
         #not found
         return

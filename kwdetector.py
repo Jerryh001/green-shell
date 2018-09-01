@@ -21,7 +21,7 @@ class DetectDetail(object):
         return self.isdetect
         
 class Message(object):
-    def __init__(self,time:datetime=datetime.now(),ID:int=0,nickname:str="",content:str=""):
+    def __init__(self,time:datetime=datetime.now(),ID:str="",nickname:str="",content:str=""):
         self.time=time
         self.ID=ID
         self.nickname=nickname
@@ -63,7 +63,7 @@ class Message(object):
                 self.message_detect=DetectDetail(True,pattren.span())
                 break
 
-        if trusted_list.__contains__(self.nickname):
+        if self.nickname in trusted_list:
             if self.ID not in trusted_list[self.nickname]:
                 self.name_detect=DetectDetail(True,(0,len(self.nickname)))
 
