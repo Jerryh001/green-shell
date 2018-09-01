@@ -98,8 +98,8 @@ class KWDetector(object):
 
     def JsonLoad(self):
         dirname = path.dirname(__file__)
-        self._keyword_list=json.load(open(path.join(dirname, "keyword.json"), 'r',encoding='utf8'))
-        self._trusted_list=json.load(open(path.join(dirname, "trusted_user.json"), 'r',encoding='utf8'))
+        self._keyword_list=json.load(open(path.join(dirname, "data/keyword.json"), 'r',encoding='utf8'))
+        self._trusted_list=json.load(open(path.join(dirname, "data/trusted_user.json"), 'r',encoding='utf8'))
     async def GetHPMessages(self):
         try:
             async with aiohttp.request("POST",self._url, data=self._payload,headers=self._header) as r:
@@ -189,6 +189,7 @@ class KWDetector(object):
             else:
                 self._log.info("kekeke HP has nothing to update")
             await asyncio.sleep(period)
+        self._log.info("stopped kekeke HP moniter")
 
 
 

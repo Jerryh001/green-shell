@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import importlib
 import logging
-import kekekekeyworddetector.kwdetector as kd
+import kwdetector as kd
 import kekekemonitor as km
 
 TOKEN="NDgzMjQxMTQzODM2OTk5Njkx.DmQmDg.9YVzFdm_zE3ulbKCN1YULe_phlA"
@@ -22,13 +22,24 @@ async def on_message(message:discord.Message):
 @bot.command()
 async def kekeke(ctx):
     detector=kd.KWDetector(bot.get_channel(483268806072991794))
-    await detector.PeriodRun(30)
+    try:
+        await detector.PeriodRun(30)
+        ctx.send("stopped kekeke HP moniter")
+    except:
+        logging.error("moniter kekeke HP stopped unexcept")
+        ctx.send("moniter kekeke HP stopped unexcept")
 
 
 @bot.command()
 async def moniter(ctx,kchannel:str):
     monitor=km.KekekeMonitor(kchannel,bot,483925945494011906)
-    await monitor.PeriodRun(30)
+    try:
+        await monitor.PeriodRun(30)
+        ctx.send("stopped "+kchannel+" moniter")
+    except:
+        logging.error("moniter "+kchannel+" stopped unexcept")
+        ctx.send("moniter "+kchannel+" stopped unexcept")
+    
 
 @bot.command()
 async def hi(ctx):

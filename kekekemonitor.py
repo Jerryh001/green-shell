@@ -97,4 +97,5 @@ class KekekeMonitor(object):
             else:
                 self._log.info(self.channel+" has nothing to update")
             await asyncio.sleep(period)
+        self._log.info("stopped "+self.channel+" moniter")
 
