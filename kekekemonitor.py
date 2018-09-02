@@ -28,7 +28,7 @@ class KekekeMonitor(object):
         self._log=logging.getLogger(self.__class__.__name__)
 
     async def GetChannelMessages(self,start_from:datetime=None,max_size:int=0)->list:
-        ans=[]
+        ans=list()
         try:
             async with aiohttp.request("POST",self._url, data=self._payload.format(self.channel),headers=self._header) as r:
                 resp = await r.text()
@@ -52,12 +52,13 @@ class KekekeMonitor(object):
                 ans.append(m_output)
                 if max_size>0 and len(ans)>=max_size:
                     break
+
+            if ans:
+                self._log.debug("Get messages from channel "+self.channel+" successed")
+            else:
+                self._log.debug("Get messages from channel "+self.channel+" successed, but it's empty")
         else:
             self._log.warning("Parse messages from channel "+self.channel+" failed, response:"+resp[:4])
-        if ans:
-            self._log.debug("Get messages from channel "+self.channel+" successed")
-        else:
-            self._log.debug("Get messages from channel "+self.channel+" successed, but it's empty")
         return ans
 
     async def SendReport(self,data:list):

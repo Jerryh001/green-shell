@@ -105,10 +105,10 @@ class KWDetector(object):
                 resp = await r.text()
         except:
             self._log.error("Fetch kekeke HP failed")
+        output=list()
         if resp[:4]==r"//OK":
             self.KeywordLoad()
             data=json.loads(resp[4:])[-3]
-            output=[]
             curr_channel=Channel()
             for s in reversed(data):
                 if s[0]=='/':#topic
@@ -126,10 +126,9 @@ class KWDetector(object):
                         curr_channel.messages.append(message)
                 elif s[:4]=="http":#thumbnail
                     curr_channel.thumbnail=s
-            return output
-
         else:
             self._log.warning("Parse messages kekeke HP failed, response:"+resp[:4])
+        return output
 
 
 
