@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 import importlib
+import signal
+import asyncio
 import logging
 import os
 import kwdetector as kd
@@ -9,6 +11,7 @@ import kekekemonitor as km
 TOKEN="NDgzMjQxMTQzODM2OTk5Njkx.DmQmDg.9YVzFdm_zE3ulbKCN1YULe_phlA"
 
 bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
+
 
 @bot.event
 async def on_ready():
@@ -90,10 +93,16 @@ async def download(ctx,message_id:int,target:str=None):
         await ctx.send("save "+filename+" failed")
         pass #fail
 
-
+async def SIGTERM_exit():
+    await bot.get_channel(483242913807990806).send(bot.user.name+" has stopped by SIGTERM")
+    logging.warning(bot.user.name+" has stopped by SIGTERM")
 
 if __name__=="__main__":
     logging.basicConfig(level=logging.WARNING)
     bot.remove_command('help')
+
+
+    #bot.loop.add_signal_handler(signal.SIGINT, raise_graceful_exit)
+    bot.loop.add_signal_handler(signal.SIGTERM,lambda: asyncio.ensure_future(SIGTERM_exit()))
 
     bot.run(TOKEN)
