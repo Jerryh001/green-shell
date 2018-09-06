@@ -3,6 +3,7 @@ import asyncio
 import json
 import re
 import time
+import html
 from os import path
 from datetime import datetime
 from datetime import timezone
@@ -108,7 +109,7 @@ class KWDetector(object):
         output=list()
         if resp[:4]==r"//OK":
             self.KeywordLoad()
-            data=json.loads(resp[4:])[-3]
+            data=json.loads(html.unescape(resp[4:]))[-3]
             curr_channel=Channel()
             for s in reversed(data):
                 if s[0]=='/':#topic
@@ -133,6 +134,7 @@ class KWDetector(object):
 
 
     async def Detect(self):
+
         #self.JsonLoad()
         HP=await self.GetHPMessages()          
         return HP

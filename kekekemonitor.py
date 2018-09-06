@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import json
 import re
+import html
 from datetime import datetime
 from datetime import timezone
 import tzlocal
@@ -35,7 +36,7 @@ class KekekeMonitor(object):
         except:
             self._log.error("Fetch messages from channel "+self.channel+" failed")
         if resp[:4]==r"//OK":
-            data=json.loads(resp[4:])[-3]
+            data=json.loads(html.unescape(resp[4:]))[-3]
             for message_raw in reversed(data):
                 if message_raw[0]!='{':
                     break
