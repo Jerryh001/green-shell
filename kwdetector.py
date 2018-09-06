@@ -109,7 +109,7 @@ class KWDetector(object):
         output=list()
         if resp[:4]==r"//OK":
             self.KeywordLoad()
-            data=json.loads(html.unescape(resp[4:]))[-3]
+            data=json.loads(resp[4:])[-3]
             curr_channel=Channel()
             for s in reversed(data):
                 if s[0]=='/':#topic
@@ -119,6 +119,8 @@ class KWDetector(object):
                     curr_channel.messages.clear()#?
                 elif s[0]=='{':#message
                     m=json.loads(s)
+                    for key in m:
+                        m[key]=html.unescape(m[key])
                     ts=datetime.fromtimestamp(int(m["date"])/1000)
                     message_time=tzlocal.get_localzone().localize(ts)
                     message=Message(time=message_time,ID=m["senderPublicId"],nickname=m["senderNickName"],content=m["content"])

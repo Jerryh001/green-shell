@@ -36,7 +36,7 @@ async def kekeke(ctx):
 
 @bot.command()
 async def moniter(ctx,kchannel:str):
-    monitor=km.KekekeMonitor(kchannel,bot,483925945494011906)
+    monitor=km.KekekeMonitor(kchannel,bot.get_channel(483925945494011906))
     try:
         await monitor.PeriodRun(30)
         await ctx.send("stopped "+kchannel+" moniter")
@@ -101,8 +101,10 @@ if __name__=="__main__":
     logging.basicConfig(level=logging.WARNING)
     bot.remove_command('help')
 
-
-    #bot.loop.add_signal_handler(signal.SIGINT, raise_graceful_exit)
-    bot.loop.add_signal_handler(signal.SIGTERM,lambda: asyncio.ensure_future(SIGTERM_exit()))
+    try:
+        #bot.loop.add_signal_handler(signal.SIGINT, raise_graceful_exit)
+        bot.loop.add_signal_handler(signal.SIGTERM,lambda: asyncio.ensure_future(SIGTERM_exit()))
+    except NotImplementedError:
+        pass #run in windows
 
     bot.run(TOKEN)

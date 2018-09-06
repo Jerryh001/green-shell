@@ -23,9 +23,9 @@ class KekekeMonitor(object):
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     _payload = r"7|0|6|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getLeftMessages|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|6|"
     _last_time:datetime=None
-    def __init__(self,channel:str,bot:commands.Bot,stdout_id:int):
+    def __init__(self,channel:str,stdout):
         self.channel=channel
-        self.stdout=bot.get_channel(stdout_id)
+        self.stdout=stdout
         self._log=logging.getLogger(self.__class__.__name__)
 
     async def GetChannelMessages(self,start_from:datetime=None,max_size:int=0)->list:
@@ -36,11 +36,13 @@ class KekekeMonitor(object):
         except:
             self._log.error("Fetch messages from channel "+self.channel+" failed")
         if resp[:4]==r"//OK":
-            data=json.loads(html.unescape(resp[4:]))[-3]
+            data=json.loads(resp[4:])[-3]
             for message_raw in reversed(data):
                 if message_raw[0]!='{':
                     break
                 message=json.loads(message_raw)
+                for key in message:
+                    message[key]=html.unescape(message[key])
                 ts=datetime.fromtimestamp(int(message["date"])/1000)
                 message_time=tzlocal.get_localzone().localize(ts)
                 if start_from is not None and start_from>=message_time:
@@ -101,3 +103,5 @@ class KekekeMonitor(object):
             await asyncio.sleep(period)
         self._log.info("stopped "+self.channel+" moniter")
 
+if __name__=="__main__":
+    asyncio.get_event_loop().run_until_complete(KekekeMonitor("彩虹小馬實況",None).GetChannelMessages())
