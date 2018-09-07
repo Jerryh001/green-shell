@@ -93,7 +93,7 @@ class KekekeMonitor(object):
         try:
             self._last_time=await self.GetLastMessageTime()
         except:
-            self._last_time=datetime.now()
+            self._last_time=tzlocal.get_localzone().localize(datetime.now())
         while True:
             self._log.info("Checking "+self.channel+" ......")
             data=await self.GetChannelMessages(start_from=self._last_time)
