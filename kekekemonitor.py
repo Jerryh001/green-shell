@@ -90,7 +90,10 @@ class KekekeMonitor(object):
 
     async def PeriodRun(self,period:int):
         self._log.info("Starting monitor "+self.channel+" ......")
-        self._last_time=await self.GetLastMessageTime()
+        try:
+            self._last_time=await self.GetLastMessageTime()
+        except:
+            self._last_time=datetime.now()
         while True:
             self._log.info("Checking "+self.channel+" ......")
             data=await self.GetChannelMessages(start_from=self._last_time)
