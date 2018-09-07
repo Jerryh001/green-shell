@@ -35,8 +35,16 @@ async def kekeke(ctx):
 
 
 @bot.command()
-async def moniter(ctx,kchannel:str):
-    monitor=km.KekekeMonitor(kchannel,bot.get_channel(483925945494011906))
+async def moniter(ctx,c_id:int):
+    monitor=None
+    kchannel=""
+    try:
+        kchannel=bot.get_channel(c_id).name
+        monitor=km.KekekeMonitor(kchannel,bot.get_channel(c_id))
+    except:
+        logging.warning("channel id "+c_id+" not exist")
+        await ctx.send("channel id "+c_id+" not exist")
+        return
     try:
         await monitor.PeriodRun(30)
         await ctx.send("stopped "+kchannel+" moniter")
