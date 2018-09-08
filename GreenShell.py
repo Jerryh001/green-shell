@@ -21,7 +21,7 @@ bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
 cube_name="dc1rgs6wmts7"
 def DownloadAllFiles():
     
-    s3 = boto3.session().resource("s3")
+    s3 = boto3.resource("s3")
     for obj in s3.Bucket("cloud-cube").objects.filter(Prefix=cube_name+"/"):
         if obj.key[-1]!="/":
             dirname = os.path.dirname(__file__)
@@ -30,7 +30,7 @@ def DownloadAllFiles():
             
             s3.Bucket("cloud-cube").download_file(obj.key, filepath)
 
-@bot.commend()
+@bot.command()
 async def update(ctx,id:int):
     message:discord.Message
     try:
