@@ -21,7 +21,7 @@ bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
 cube_name="dc1rgs6wmts7"
 def DownloadAllFiles():
     
-    s3 = boto3.resource("s3")
+    s3 = boto3.session().resource("s3")
     for obj in s3.Bucket("cloud-cube").objects.filter(Prefix=cube_name+"/"):
         if obj.key[-1]!="/":
             dirname = os.path.dirname(__file__)
@@ -30,7 +30,7 @@ def DownloadAllFiles():
             
             s3.Bucket("cloud-cube").download_file(obj.key, filepath)
 
-@bot.event
+@bot.commend()
 async def update(ctx,id:int):
     message:discord.Message
     try:
@@ -48,9 +48,9 @@ async def update(ctx,id:int):
         await message.attachments[0].save(filepath)
         s3 = boto3.resource("s3")
         s3.upload_file(filepath, "cloud-cube", cube_name+"/"+filename)
-        await ctx.send("save "+filename+" successful")
+        await ctx.send("update "+filename+" successful")
     except:
-        await ctx.send("save "+filename+" failed")
+        await ctx.send("update "+filename+" failed")
         pass #fail
 
 
