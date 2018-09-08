@@ -47,7 +47,8 @@ async def update(ctx,id:int):
     try:
         await message.attachments[0].save(filepath)
         s3 = boto3.resource("s3")
-        s3.upload_file(filepath, "cloud-cube", cube_name+"/"+filename)
+        s3.Bucket("cloud-cube").put_object(Key=cube_name+"/"+filename, Body=open(filepath, 'rb'))
+        
         await ctx.send("update "+filename+" successful")
     except:
         await ctx.send("update "+filename+" failed")
