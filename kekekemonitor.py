@@ -47,7 +47,7 @@ class KekekeMonitor(object):
                 message_time=tzlocal.get_localzone().localize(ts)
                 if start_from is not None and start_from>=message_time:
                     break
-                ex=re.search(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',message["content"], re.IGNORECASE)
+                ex=re.search(r'https?://\S+',message["content"], re.IGNORECASE)
                 m_output=Message(time=message_time,ID=message["senderPublicId"],nickname=message["senderNickName"],content=message["content"])
                 self._log.debug(m_output)
                 if ex:
@@ -83,17 +83,17 @@ class KekekeMonitor(object):
     
     async def GetLastMessageTime(self):
         last_messages=await self.stdout.history(limit=1).flatten()
-        if last_messages[0].embeds:
-            return last_messages[0].embeds[0].timestamp.replace(tzinfo=timezone.utc)
+        if last_messages:        
+            if last_messages[0].embeds:
+                return last_messages[0].embeds[0].timestamp.replace(tzinfo=timezone.utc)
+            else:
+                return last_messages[0].created_at().replace(tzinfo=timezone.utc)
         else:
-            return last_messages[0].created_at().replace(tzinfo=timezone.utc)
+            return tzlocal.get_localzone().localize(datetime.min)
 
     async def PeriodRun(self,period:int):
         self._log.info("Starting monitor "+self.channel+" ......")
-        try:
-            self._last_time=await self.GetLastMessageTime()
-        except:
-            self._last_time=tzlocal.get_localzone().localize(datetime.now())
+        self._last_time=await self.GetLastMessageTime()
         while True:
             self._log.info("Checking "+self.channel+" ......")
             data=await self.GetChannelMessages(start_from=self._last_time)

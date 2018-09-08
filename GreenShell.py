@@ -7,14 +7,56 @@ import logging
 import os
 import kwdetector as kd
 import kekekemonitor as km
+import boto3
+import re
 
-TOKEN="NDgzMjQxMTQzODM2OTk5Njkx.DmQmDg.9YVzFdm_zE3ulbKCN1YULe_phlA"
+
+
+TOKEN=os.getenv('DISCORD_KEY')
+if not TOKEN:
+    with open("data/TOKEN","r") as f:
+        TOKEN=f.read()
 
 bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
+cube_name="dc1rgs6wmts7"
+def DownloadAllFiles():
+    
+    s3 = boto3.resource("s3")
+    for obj in s3.Bucket("cloud-cube").objects.filter(Prefix=cube_name+"/"):
+        if obj.key[-1]!="/":
+            dirname = os.path.dirname(__file__)
+            filename=re.search(r"(?<=\/)[^\/]+$",obj.key).group(0)
+            filepath = os.path.join(dirname, "data/"+filename)
+            
+            s3.Bucket("cloud-cube").download_file(obj.key, filepath)
+
+@bot.event
+async def update(ctx,id:int):
+    message:discord.Message
+    try:
+        message=await bot.get_channel(485322302603657218).get_message(id)
+    except discord.NotFound:
+        #not found
+        return
+    if not message.attachments:
+        #no attach
+        return
+    dirname = os.path.dirname(__file__)
+    filename = "data/"+message.attachments[0].filename
+    filepath=os.path.join(dirname, filename)
+    try:
+        await message.attachments[0].save(filepath)
+        s3 = boto3.resource("s3")
+        s3.upload_file(filepath, "cloud-cube", cube_name+"/"+filename)
+        await ctx.send("save "+filename+" successful")
+    except:
+        await ctx.send("save "+filename+" failed")
+        pass #fail
 
 
 @bot.event
 async def on_ready():
+    DownloadAllFiles()
     logging.info("Logged in as {0.user.name}({0.user.id})".format(bot))
     await bot.get_channel(483242913807990806).send(bot.user.name+" is ONLINE now")
 
