@@ -17,7 +17,7 @@ if not TOKEN:
     with open("data/TOKEN","r") as f:
         TOKEN=f.read()
 
-bot:commands.Bot
+bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
 cube_name="dc1rgs6wmts7"
 def DownloadAllFiles():
     
@@ -142,16 +142,14 @@ async def SIGTERM_exit():
 
 def SIG_EXIT():
     logging.warning(bot.user.name+" has stopped by SIGTERM-")
+    print("bye")
 if __name__=="__main__":
     logging.basicConfig(level=logging.WARNING)
+    bot.remove_command('help')
     try:
-        #bot.loop.add_signal_handler(signal.SIGINT, raise_graceful_exit)
-        asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,SIG_EXIT)
+        bot.loop.add_signal_handler(signal.SIGTERM,SIG_EXIT)
         #asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,lambda: asyncio.ensure_future(SIGTERM_exit()))
     except NotImplementedError:
         pass #run in windows
-    bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
-    bot.remove_command('help')
-    
 
     bot.run(TOKEN)
