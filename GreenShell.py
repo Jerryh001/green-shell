@@ -145,10 +145,10 @@ def SIG_EXIT():
 if __name__=="__main__":
     logging.basicConfig(level=logging.WARNING)
     bot.remove_command('help')
-
+    bot.loop.add_signal_handler(signal.SIGTERM,SIG_EXIT)
     try:
         #bot.loop.add_signal_handler(signal.SIGINT, raise_graceful_exit)
-        asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,SIG_EXIT)
+        bot.loop.add_signal_handler(signal.SIGTERM,SIG_EXIT)
         #asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,lambda: asyncio.ensure_future(SIGTERM_exit()))
     except NotImplementedError:
         pass #run in windows
