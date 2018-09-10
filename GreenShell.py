@@ -67,7 +67,7 @@ async def on_message(message:discord.Message):
         await bot.process_commands(message)
        
 @bot.command()
-async def kekeke(ctx):
+async def kekeke(ctx:commands.Context):
     detector=kd.KWDetector(bot.get_channel(483268806072991794))
     try:
         await detector.PeriodRun(30)
@@ -78,30 +78,22 @@ async def kekeke(ctx):
 
 
 @bot.command()
-async def moniter(ctx,c_id:int):
-    monitor=None
-    kchannel=""
-    try:
-        kchannel=bot.get_channel(c_id).name
-        monitor=km.KekekeMonitor(kchannel,bot.get_channel(c_id))
-    except:
-        logging.warning("channel id "+c_id+" not exist")
-        await ctx.send("channel id "+c_id+" not exist")
-        return
+async def moniter(ctx:commands.Context,channel:discord.TextChannel):
+    monitor=km.KekekeMonitor(channel.name,channel)
     try:
         await monitor.PeriodRun(30)
-        await ctx.send("stopped "+kchannel+" moniter")
+        await ctx.send("stopped "+channel.name+" moniter")
     except:
-        logging.error("moniter "+kchannel+" stopped unexcept")
-        await ctx.send("moniter "+kchannel+" stopped unexcept")
+        logging.error("moniter "+channel.name+" stopped unexcept")
+        await ctx.send("moniter "+channel.name+" stopped unexcept")
     
 
 @bot.command()
-async def hi(ctx):
+async def hi(ctx:commands.Context):
     await ctx.send("Hello")
 
-@bot.command()
-async def cmd(ctx, *, cmd:str):
+@bot.command(name="eval")
+async def _eval(ctx:commands.Context, *, cmd:str):
     try:
         ret=eval(cmd)
         logging.debug("eval({0}) successed ,return:\n{1}".format(cmd,ret))
@@ -148,13 +140,16 @@ async def SIGTERM_exit():
     await bot.get_channel(483242913807990806).send(bot.user.name+" has stopped by SIGTERM")
     logging.warning(bot.user.name+" has stopped by SIGTERM")
 
+def SIG_EXIT():
+    logging.warning(bot.user.name+" has stopped by SIGTERM-")
 if __name__=="__main__":
     logging.basicConfig(level=logging.WARNING)
     bot.remove_command('help')
 
     try:
         #bot.loop.add_signal_handler(signal.SIGINT, raise_graceful_exit)
-        bot.loop.add_signal_handler(signal.SIGTERM,lambda: asyncio.ensure_future(SIGTERM_exit()))
+        asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,SIG_EXIT)
+        #asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,lambda: asyncio.ensure_future(SIGTERM_exit()))
     except NotImplementedError:
         pass #run in windows
 
