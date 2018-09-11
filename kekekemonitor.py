@@ -72,7 +72,7 @@ class KekekeMonitor(object):
             embed.set_footer(text="kekeke.cc/"+self.channel)
             embed.set_author(name=message.ID[:5]+"@"+message.nickname)
             self._last_time=message.time
-            if re.search(r".(jp[e]?g|png|gif)$",message.extra,re.IGNORECASE):
+            if re.search(r"\.(jpe?g|png|gif)$",message.extra,re.IGNORECASE):
                 embed.set_image(url=message.extra)
                 await self.stdout.send(embed=embed)
             else:
