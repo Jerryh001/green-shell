@@ -69,8 +69,8 @@ class KekekeMonitor(object):
             self._last_time=await self.GetLastMessageTime()
         for message in reversed(data):
             embed=discord.Embed(description=message.content,timestamp=message.time)
-            embed.set_footer(text="kekeke.cc/"+self.channel)
-            embed.set_author(name=message.ID[:5]+"@"+message.nickname)
+            embed.set_footer(text=message.ID)
+            embed.set_author(name=message.nickname)
             self._last_time=message.time
             if re.search(r"\.(jpe?g|png|gif)$",message.extra,re.IGNORECASE):
                 embed.set_image(url=message.extra)
