@@ -82,13 +82,14 @@ class KekekeMonitor(object):
             
     
     async def GetLastMessageTime(self):
-        last_messages=await self.stdout.history(limit=1).flatten()
-        if last_messages:        
-            if last_messages[0].embeds:
-                return last_messages[0].embeds[0].timestamp.replace(tzinfo=timezone.utc)
-            else:
-                return last_messages[0].created_at().replace(tzinfo=timezone.utc)
-        else:
+        try:
+            last_messages=await self.stdout.history(limit=1).flatten()
+            if last_messages:        
+                if last_messages[0].embeds:
+                    return last_messages[0].embeds[0].timestamp.replace(tzinfo=timezone.utc)
+                else:
+                    return last_messages[0].created_at().replace(tzinfo=timezone.utc)
+        except:
             return tzlocal.get_localzone().localize(datetime.min)
 
     async def PeriodRun(self,period:int):
@@ -107,4 +108,4 @@ class KekekeMonitor(object):
         self._log.info("stopped "+self.channel+" moniter")
 
 if __name__=="__main__":
-    asyncio.get_event_loop().run_until_complete(KekekeMonitor("彩虹小馬實況",None).GetChannelMessages())
+    asyncio.get_event_loop().run_until_complete(KekekeMonitor("ffrk",None).GetChannelMessages())

@@ -149,7 +149,7 @@ class KWDetector(object):
         for board in data:
             embed_content="<https://kekeke.cc/"+board.name+">\n\n"
             for message in board.messages:
-                embed_content+=r"`"+message.time.strftime('%H:%M:%S')+r"`"
+                embed_content+=r"`"+message.time.strftime('%d %H:%M')+r"`"
 
                 embed_content+=r":star:"
                 if message.ID_detect:
