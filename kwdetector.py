@@ -46,30 +46,18 @@ class Message(object):
                 self.message_detect=DetectDetail(True,pattren.span())
                 break
 
-        for ex in keyword_list["EXmessage"]:
-            if self.content.lower()==ex.lower():
-                self.message_detect=DetectDetail(True,(0,len(ex)))
-                break
-
-        for keyword in keyword_list["keyword"]:
-            pattren=re.search(keyword, self.nickname, re.IGNORECASE)
-            if pattren:
-                self.name_detect=DetectDetail(True,pattren.span())
-                break
-
-
-        for keyword in keyword_list["keyword"]:      
-            pattren=re.search(keyword, self.content, re.IGNORECASE)
-            if pattren:
-                self.message_detect=DetectDetail(True,pattren.span())
-                break
 
         if self.nickname in trusted_list:
             if self.ID not in trusted_list[self.nickname]:
                 self.name_detect=DetectDetail(True,(0,len(self.nickname)))
+            else:
+                self.name_detect=False
+                self.ID_detect=False
 
-        if re.search(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',self.content, re.IGNORECASE):
-            self.message_detect.isdetect=False
+        url=re.search(r'https?://\S+',self.content, re.IGNORECASE)
+        if url:
+            if url.span()[0]<=self.message_detect.loc[0] and self.message_detect.loc[1]<=url.span()[1]:
+                self.message_detect.isdetect=False
         
     def Detected(self):
         return self.ID_detect or self.name_detect or self.message_detect
