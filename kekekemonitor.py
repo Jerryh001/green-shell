@@ -72,13 +72,16 @@ class KekekeMonitor(object):
             embed.set_footer(text=message.ID)
             embed.set_author(name=message.nickname)
             self._last_time=message.time
-            if re.search(r"\.(jpe?g|png|gif)$",message.extra,re.IGNORECASE):
-                embed.set_image(url=message.extra)
-                await self.stdout.send(embed=embed)
-            else:
-                if message.extra:
+            if message.extra:
+                if re.search(r"^https?://\S+\.(jpe?g|png|gif)$",message.extra,re.IGNORECASE):
+                    if message.content[:6]=="delete":
+                        embed.set_thumbnail(url=message.extra)
+                    else:
+                        embed.set_image(url=message.extra)
+                else:
                     await self.stdout.send(content=message.extra)
-                await self.stdout.send(embed=embed)
+                
+            await self.stdout.send(embed=embed)
             
     
     async def GetLastMessageTime(self):
