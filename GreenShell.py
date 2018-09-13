@@ -3,6 +3,7 @@ from discord.ext import commands
 import importlib
 import signal
 import asyncio
+import concurrent.futures
 import logging
 import os
 import kwdetector as kd
@@ -17,7 +18,7 @@ if not TOKEN:
     with open("data/TOKEN","r") as f:
         TOKEN=f.read()
 
-bot = commands.Bot(command_prefix='$',owner_id=152965086951112704)
+bot = commands.Bot(command_prefix='.',owner_id=152965086951112704)
 cube_name="dc1rgs6wmts7"
 def DownloadAllFiles():
     
@@ -48,18 +49,19 @@ async def update(ctx,id:int):
         await message.attachments[0].save(filepath)
         s3 = boto3.resource("s3")
         s3.Bucket("cloud-cube").put_object(Key=cube_name+"/"+filename, Body=open(filepath, 'rb'))
-        
-        await ctx.send("update "+filename+" successful")
+        logging.info("更新 "+filename+" 成功")
+        await ctx.send("更新`"+filename+"`成功")
     except:
-        await ctx.send("update "+filename+" failed")
-        pass #fail
+        logging.error("更新 "+filename+" 失敗")
+        await ctx.send("更新`"+filename+"`失敗")
+        
 
 
 @bot.event
 async def on_ready():
     DownloadAllFiles()
     logging.info("Logged in as {0.user.name}({0.user.id})".format(bot))
-    await bot.get_channel(483242913807990806).send(bot.user.name+" is ONLINE now")
+    await bot.get_channel(483242913807990806).send(bot.user.name+"已上線")
 
 @bot.event
 async def on_message(message:discord.Message):
@@ -76,17 +78,34 @@ async def kekeke(ctx:commands.Context):
         logging.error("moniter kekeke HP stopped unexcept")
         await ctx.send("moniter kekeke HP stopped unexcept")
 
+overseeing_list={}
 
 @bot.command()
-async def moniter(ctx:commands.Context,channel:discord.TextChannel):
+async def oversee(ctx:commands.Context,channel:discord.TextChannel):
     monitor=km.KekekeMonitor(channel.name,channel)
     try:
-        await monitor.PeriodRun(30)
-        await ctx.send("stopped "+channel.name+" moniter")
+        task=bot.loop.create_task(monitor.PeriodRun(30))
+        overseeing_list[str(channel.id)]=task
+        await task
+    except concurrent.futures.CancelledError:
+        logging.info("已停止監視 "+channel.name)
+        await ctx.send("已停止監視`"+channel.name+"`")
     except:
-        logging.error("moniter "+channel.name+" stopped unexcept")
-        await ctx.send("moniter "+channel.name+" stopped unexcept")
+        logging.error("監視 "+channel.name+" 時發生錯誤")
+        await ctx.send("監視`"+channel.name+"`時發生錯誤")
     
+
+@bot.command()
+async def stop(ctx:commands.Context,channel:discord.TextChannel):
+    try:
+        future=overseeing_list.pop(str(channel.id))
+        future.cancel()
+    except KeyError:
+        logging.warning(channel.name+" 不在監視中")
+        await ctx.send("`"+channel.name+"`"+"不在監視中")
+    except:
+        logging.error("停止監視 "+channel.name+" 失敗")
+        await ctx.send("停止監視`"+channel.name+"`失敗")
 
 @bot.command()
 async def hi(ctx:commands.Context):
@@ -96,11 +115,11 @@ async def hi(ctx:commands.Context):
 async def _eval(ctx:commands.Context, *, cmd:str):
     try:
         ret=eval(cmd)
-        logging.debug("eval({0}) successed ,return:\n{1}".format(cmd,ret))
+        logging.info("eval({0})成功，返回:\n{1}".format(cmd,ret))
         await ctx.send("`{0}`".format(ret))
     except:
-        logging.warning("eval({0}) failed".format(cmd))
-        await ctx.send("`eval({0})` failed".format(cmd))
+        logging.warning("eval({0}) 失敗".format(cmd))
+        await ctx.send("`eval({0})`失敗".format(cmd))
 
 @bot.command()
 async def loglevel(ctx, level:str,logger_name:str="" ):
