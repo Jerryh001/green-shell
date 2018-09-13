@@ -85,7 +85,7 @@ async def oversee(ctx:commands.Context,channel:discord.TextChannel):
     monitor=km.KekekeMonitor(channel.name,channel)
     url=r"https://kekeke.cc/"+channel.name
     if channel.topic != url:
-        channel.edit(topic=url)
+        await channel.edit(topic=url)
     task=bot.loop.create_task(monitor.PeriodRun(30))
     overseeing_list[str(channel.id)]=task
     try:
