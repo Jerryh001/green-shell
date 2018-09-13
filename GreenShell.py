@@ -83,9 +83,12 @@ overseeing_list={}
 @bot.command()
 async def oversee(ctx:commands.Context,channel:discord.TextChannel):
     monitor=km.KekekeMonitor(channel.name,channel)
+    url=r"https://kekeke.cc/"+channel.name
+    if channel.topic != url:
+        channel.edit(topic=url)
+    task=bot.loop.create_task(monitor.PeriodRun(30))
+    overseeing_list[str(channel.id)]=task
     try:
-        task=bot.loop.create_task(monitor.PeriodRun(30))
-        overseeing_list[str(channel.id)]=task
         await task
     except concurrent.futures.CancelledError:
         logging.info("已停止監視 "+channel.name)
