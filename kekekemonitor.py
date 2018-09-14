@@ -68,8 +68,7 @@ class KekekeMonitor(object):
         if self._last_time is None:
             self._last_time=await self.GetLastMessageTime()
         for message in reversed(data):
-            embed=discord.Embed(description=message.content,timestamp=message.time)
-            embed.set_footer(text=message.ID)
+            embed=discord.Embed(description=message.content+"\n`"+message.ID+"`",timestamp=message.time)
             embed.set_author(name=message.nickname)
             self._last_time=message.time
             if message.extra:
