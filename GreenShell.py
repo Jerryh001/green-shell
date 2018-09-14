@@ -11,19 +11,15 @@ import kekekemonitor as km
 import boto3
 import re
 
+TOKEN=os.getenv("DISCORD_TOKEN") or open("data/TOKEN","r").read()
+PREFIX=os.getenv("DISCORD_PREFIX") or "!"
+CUBENAME="dc1rgs6wmts7"
 
+bot = commands.Bot(command_prefix=PREFIX,owner_id=152965086951112704)
 
-TOKEN=os.getenv('DISCORD_KEY')
-if not TOKEN:
-    with open("data/TOKEN","r") as f:
-        TOKEN=f.read()
-
-bot = commands.Bot(command_prefix='.',owner_id=152965086951112704)
-cube_name="dc1rgs6wmts7"
 def DownloadAllFiles():
-    
     s3 = boto3.resource("s3")
-    for obj in s3.Bucket("cloud-cube").objects.filter(Prefix=cube_name+"/"):
+    for obj in s3.Bucket("cloud-cube").objects.filter(Prefix=CUBENAME+"/"):
         if obj.key[-1]!="/":
             dirname = os.path.dirname(__file__)
             filename=re.search(r"(?<=\/)[^\/]+$",obj.key).group(0)
@@ -48,7 +44,7 @@ async def update(ctx,id:int):
     try:
         await message.attachments[0].save(filepath)
         s3 = boto3.resource("s3")
-        s3.Bucket("cloud-cube").put_object(Key=cube_name+"/"+filename, Body=open(filepath, 'rb'))
+        s3.Bucket("cloud-cube").put_object(Key=CUBENAME+"/"+filename, Body=open(filepath, 'rb'))
         logging.info("更新 "+filename+" 成功")
         await ctx.send("更新`"+filename+"`成功")
     except:
