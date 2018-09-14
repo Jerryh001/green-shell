@@ -27,22 +27,28 @@ def DownloadAllFiles():
             
             s3.Bucket("cloud-cube").download_file(obj.key, filepath)
 
+
+class DataFile(commands.Converter):
+    async def convert(self, ctx, argument):
+        try:
+            message=await bot.get_channel(485322302603657218).get_message(argument)
+            if message.attachments:
+                return message.attachments[0]
+        except discord.NotFound:
+            pass#not found
+        return None
+
 @bot.command()
-async def update(ctx,id:int):
-    message:discord.Message
-    try:
-        message=await bot.get_channel(485322302603657218).get_message(id)
-    except discord.NotFound:
-        #not found
-        return
-    if not message.attachments:
-        #no attach
+async def update(ctx,filemessage:DataFile):
+    if not filemessage:
+        logging.warning("找不到檔案")
+        await ctx.send("找不到檔案")
         return
     dirname = os.path.dirname(__file__)
-    filename = "data/"+message.attachments[0].filename
+    filename = "data/"+filemessage.filename
     filepath=os.path.join(dirname, filename)
     try:
-        await message.attachments[0].save(filepath)
+        await filemessage.save(filepath)
         s3 = boto3.resource("s3")
         s3.Bucket("cloud-cube").put_object(Key=CUBENAME+"/"+filename, Body=open(filepath, 'rb'))
         logging.info("更新 "+filename+" 成功")
@@ -83,7 +89,7 @@ async def oversee(ctx:commands.Context,channel:discord.TextChannel):
     if channel.topic != url:
         await channel.edit(topic=url)
     task=bot.loop.create_task(monitor.PeriodRun(30))
-    overseeing_list[str(channel.id)]=task
+    overseeing_list[channel.name]=task
     try:
         await task
     except concurrent.futures.CancelledError:
@@ -97,7 +103,7 @@ async def oversee(ctx:commands.Context,channel:discord.TextChannel):
 @bot.command()
 async def stop(ctx:commands.Context,channel:discord.TextChannel):
     try:
-        future=overseeing_list.pop(str(channel.id))
+        future=overseeing_list.pop(channel.name)
         future.cancel()
     except KeyError:
         logging.warning(channel.name+" 不在監視中")
@@ -105,6 +111,13 @@ async def stop(ctx:commands.Context,channel:discord.TextChannel):
     except:
         logging.error("停止監視 "+channel.name+" 失敗")
         await ctx.send("停止監視`"+channel.name+"`失敗")
+
+@bot.command()
+async def on_oversee(ctx:commands.Context):
+    if overseeing_list:
+        await ctx.send("監視中頻道：\n```"+"\n".join(overseeing_list)+"```")
+    else:
+        await ctx.send("沒有頻道監視中")
 
 @bot.command()
 async def hi(ctx:commands.Context):
