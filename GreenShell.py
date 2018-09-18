@@ -175,7 +175,7 @@ def SIG_EXIT():
     logging.warning(bot.user.name+" has stopped by SIGTERM-")
     print("bye")
 if __name__=="__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARNING)
     bot.remove_command('help')
     try:
         bot.loop.add_signal_handler(signal.SIGTERM,SIG_EXIT)
