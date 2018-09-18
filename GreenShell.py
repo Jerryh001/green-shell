@@ -6,8 +6,7 @@ import asyncio
 import concurrent.futures
 import logging
 import os
-import kwdetector as kd
-import kekekemonitor as km
+from kekeke import monitor as km,detector as kd
 import boto3
 import re
 
@@ -63,7 +62,7 @@ async def update(ctx,filemessage:DataFile):
 async def on_ready():
     DownloadAllFiles()
     logging.info("Logged in as {0.user.name}({0.user.id})".format(bot))
-    await bot.get_channel(483242913807990806).send(bot.user.name+"已上線")
+    await bot.get_channel(483242913807990806).send(bot.user.name+"已上線"+PREFIX)
 
 @bot.event
 async def on_message(message:discord.Message):
@@ -88,7 +87,7 @@ async def oversee(ctx:commands.Context,channel:discord.TextChannel):
     url=r"https://kekeke.cc/"+channel.name
     if channel.topic != url:
         await channel.edit(topic=url)
-    task=bot.loop.create_task(monitor.PeriodRun(30))
+    task=bot.loop.create_task(monitor.Oversee())
     overseeing_list[channel.name]=task
     try:
         await task
@@ -96,6 +95,7 @@ async def oversee(ctx:commands.Context,channel:discord.TextChannel):
         logging.info("已停止監視 "+channel.name)
         await ctx.send("已停止監視`"+channel.name+"`")
     except:
+        overseeing_list.pop(channel.name)
         logging.error("監視 "+channel.name+" 時發生錯誤")
         await ctx.send("監視`"+channel.name+"`時發生錯誤")
     
@@ -175,7 +175,7 @@ def SIG_EXIT():
     logging.warning(bot.user.name+" has stopped by SIGTERM-")
     print("bye")
 if __name__=="__main__":
-    logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(level=logging.INFO)
     bot.remove_command('help')
     try:
         bot.loop.add_signal_handler(signal.SIGTERM,SIG_EXIT)

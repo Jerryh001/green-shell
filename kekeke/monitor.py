@@ -1,67 +1,44 @@
-import aiohttp
-import asyncio
-import json
-import re
-import html
-from datetime import datetime
-from datetime import timezone
-import tzlocal
-import logging
-import discord
-from discord.ext import commands
-
-class Message(object):
-    def __init__(self,time:datetime=datetime.now(),ID:int=0,nickname:str="",content:str="",extra:str=""):
-        self.time=time
-        self.ID=ID
-        self.nickname=nickname
-        self.content=content
-        self.extra=extra
+from kekeke import *
+import websockets
+from .message import Message,MessageType
 
 class KekekeMonitor(object):
     _url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     _payload = r"7|0|6|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getLeftMessages|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|6|"
-    _last_time:datetime=None
+    _log=logging.getLogger(__name__)
+    
     def __init__(self,channel:str,stdout):
         self.channel=channel
         self.stdout=stdout
-        self._log=logging.getLogger(self.__class__.__name__)
+        self._last_time:datetime=None
+        
+        
 
-    async def GetChannelMessages(self,start_from:datetime=None,max_size:int=0)->list:
+    async def GetChannelHistoryMessages(self,start_from:datetime=None)->list:
         ans=list()
         try:
             async with aiohttp.request("POST",self._url, data=self._payload.format(self.channel),headers=self._header) as r:
                 resp = await r.text()
         except:
-            self._log.error("Fetch messages from channel "+self.channel+" failed")
+            self._log.error("Fetch history messages from channel "+self.channel+" failed")
         if resp[:4]==r"//OK":
             data=json.loads(resp[4:])[-3]
             for message_raw in reversed(data):
                 if message_raw[0]!='{':
                     break
-                message=json.loads(message_raw)
-                for key in message:
-                    message[key]=html.unescape(message[key])
-                ts=datetime.fromtimestamp(int(message["date"])/1000)
-                message_time=tzlocal.get_localzone().localize(ts)
-                if start_from is not None and start_from>=message_time:
+                m_output=Message.loadjson(message_raw)
+                if start_from is not None and start_from>=m_output.time:
                     break
-                ex=re.search(r'https?://\S+',message["content"], re.IGNORECASE)
-                m_output=Message(time=message_time,ID=message["senderPublicId"],nickname=message["senderNickName"],content=message["content"])
                 self._log.debug(m_output)
-                if ex:
-                    m_output.extra=ex.group(0)
                 ans.append(m_output)
-                if max_size>0 and len(ans)>=max_size:
-                    break
 
             if ans:
-                self._log.debug("Get messages from channel "+self.channel+" successed")
+                self._log.debug("Get history messages from channel "+self.channel+" successed")
             else:
-                self._log.debug("Get messages from channel "+self.channel+" successed, but it's empty")
+                self._log.debug("Get history messages from channel "+self.channel+" successed, but it's empty")
         else:
-            self._log.warning("Parse messages from channel "+self.channel+" failed, response:"+resp[:4])
+            self._log.warning("Parse history messages from channel "+self.channel+" failed, response:"+resp[:4])
         return ans
 
     async def SendReport(self,data:list):
@@ -72,14 +49,14 @@ class KekekeMonitor(object):
             embed.set_footer(text=message.ID)
             embed.set_author(name=message.ID[:5]+"@"+message.nickname)
             self._last_time=message.time
-            if message.extra:
-                if re.search(r"^https?://\S+\.(jpe?g|png|gif)$",message.extra,re.IGNORECASE):
-                    if message.content[:6]=="delete":
-                        embed.set_thumbnail(url=message.extra)
+            if message.url:
+                if re.search(r"^https?://\S+\.(jpe?g|png|gif)$",message.url,re.IGNORECASE):
+                    if message.type==MessageType.deleteimage:
+                        embed.set_thumbnail(url=message.url)
                     else:
-                        embed.set_image(url=message.extra)
+                        embed.set_image(url=message.url)
                 else:
-                    await self.stdout.send(content=message.extra)
+                    await self.stdout.send(content=message.url)
                 
             await self.stdout.send(embed=embed)
             
@@ -100,7 +77,7 @@ class KekekeMonitor(object):
         self._last_time=await self.GetLastMessageTime()
         while True:
             self._log.info("Checking "+self.channel+" ......")
-            data=await self.GetChannelMessages(start_from=self._last_time)
+            data=await self.GetChannelHistoryMessages(start_from=self._last_time)
             if len(data)>0:
                 async with self.stdout.typing():
                     await self.SendReport(data)
@@ -110,5 +87,35 @@ class KekekeMonitor(object):
             await asyncio.sleep(period)
         self._log.info("stopped "+self.channel+" moniter")
 
+    async def Oversee(self):
+        self._log.info("開始監視 "+self.channel)
+        self._last_time=await self.GetLastMessageTime()
+        self._log.info("取得 "+self.channel+" 的歷史訊息")
+        data=await self.GetChannelHistoryMessages(start_from=self._last_time)
+        if len(data)>0:
+            async with self.stdout.typing():
+                await self.SendReport(data)
+            self._log.info("更新了 "+self.channel+" 的 "+str(len(data))+" 條訊息")
+        self._log.info("開始常駐監聽 "+self.channel)
+        SUBSCRIBE=r"""SUBSCRIBE
+        destination:/topic/{0}""".format(self.channel)
+        async with websockets.connect("wss://ws.kekeke.cc/com.liquable.hiroba.websocket") as ws:
+            await ws.send(SUBSCRIBE)
+            while not ws.closed:
+                try:
+                    data=await asyncio.wait_for(ws.recv(), timeout=60)
+                    if data[:7]=="MESSAGE":
+                        m_raw=re.search(r"{.+",data,re.IGNORECASE).group(0)
+                        m=Message.loadjson(m_raw)
+                        if m:
+                            async with self.stdout.typing():
+                                await self.SendReport([m])
+                except asyncio.TimeoutError:
+                    self._log.info("PING "+self.channel)
+                    await ws.ping(data="PING")
+        
+
+            
+
 if __name__=="__main__":
-    asyncio.get_event_loop().run_until_complete(KekekeMonitor("ffrk",None).GetChannelMessages())
+    asyncio.get_event_loop().run_until_complete(KekekeMonitor("ffrk",None).GetChannelHistoryMessages())

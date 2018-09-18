@@ -1,17 +1,5 @@
-import aiohttp
-import asyncio
-import json
-import re
-import time
-import html
-from os import path
-from datetime import datetime
-from datetime import timezone
-import tzlocal
-import logging
-import discord
-from discord.ext import commands
-
+from kekeke import *
+#from .message import Message,MessageType
 class DetectDetail(object):
     isdetect:bool=False
     loc:tuple=(0,0)
