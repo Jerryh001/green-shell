@@ -73,7 +73,7 @@ class KWDetector(object):
         self._log=logging.getLogger(self.__class__.__name__)
 
     def KeywordLoad(self):
-        dirname = path.dirname(__file__)
+        dirname = os.getcwd()
         self._keyword_list=json.load(open(path.join(dirname, "data/keyword.json"), 'r',encoding='utf8'))
         self._trusted_list=json.load(open(path.join(dirname, "data/trusted_user.json"), 'r',encoding='utf8'))
     async def GetHPMessages(self):
