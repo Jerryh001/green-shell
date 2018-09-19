@@ -124,7 +124,7 @@ class Monitor(object):
                             if m.content[:6]==".speak" and m.ID=="3b0f2a3a8a2a35a9c9727f188772ba095b239668":
                                 nick=re.search(r"(?<=@)\S+",m.content,re.IGNORECASE)
                                 try:
-                                    ws.send(SPEAK.format(topic=self.channel,id=m.metionIDs[0],nickname=nick.group(0),time="0"))
+                                    await ws.send(SPEAK.format(topic=self.channel,id=m.metionIDs[0],nickname=nick.group(0),time="0"))
                                 except:
                                     self._log.warning("force speck failed")
                                     pass
