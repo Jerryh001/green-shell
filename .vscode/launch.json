@@ -14,27 +14,8 @@
             "name": "Python: Green Shell",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceRoot}/GreenShell.py"
-        },
-        {
-            "name": "Python: All debug Options",
-            "type": "python",
-            "request": "launch",
-            "pythonPath": "${config:python.pythonPath}",
-            "program": "${file}",
-            "module": "module.name",
-            "env": {
-                "VAR1": "1",
-                "VAR2": "2"
-            },
-            "envFile": "${workspaceFolder}/.env",
-            "args": [
-                "arg1",
-                "arg2"
-            ],
-            "debugOptions": [
-                "RedirectOutput"
-            ]
+            "program": "${workspaceFolder}/GreenShell.py",
+            "envFile": "${workspaceFolder}/data/debug.env"
         }
     ]
 }

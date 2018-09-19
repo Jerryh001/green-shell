@@ -10,11 +10,13 @@ from kekeke import monitor as km,detector as kd
 import boto3
 import re
 
-TOKEN=os.getenv("DISCORD_TOKEN") or open("data/TOKEN","r").read()
-PREFIX=os.getenv("DISCORD_PREFIX") or "!"
+TOKEN=os.getenv("DISCORD_TOKEN")
+PREFIX=os.getenv("DISCORD_PREFIX")
 CUBENAME="dc1rgs6wmts7"
 
 bot = commands.Bot(command_prefix=PREFIX,owner_id=152965086951112704)
+
+overseeing_list={}
 
 def DownloadAllFiles():
     s3 = boto3.resource("s3")
@@ -79,15 +81,15 @@ async def kekeke(ctx:commands.Context):
         logging.error("moniter kekeke HP stopped unexcept")
         await ctx.send("moniter kekeke HP stopped unexcept")
 
-overseeing_list={}
+
 
 @bot.command()
-async def oversee(ctx:commands.Context,channel:discord.TextChannel):
+async def oversee(ctx:commands.Context,channel:discord.TextChannel,ghost:bool=False):
     monitor=km.Monitor(channel.name,channel)
     url=r"https://kekeke.cc/"+channel.name
     if channel.topic != url:
         await channel.edit(topic=url)
-    task=bot.loop.create_task(monitor.Oversee())
+    task=bot.loop.create_task(monitor.Oversee(ghost))
     overseeing_list[channel.name]=task
     try:
         await task

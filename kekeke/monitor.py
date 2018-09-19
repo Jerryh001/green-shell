@@ -94,7 +94,7 @@ class Monitor(object):
         if resp[:4]==r"//OK":
             token=json.loads(resp[4:])[-3][2]
             return token
-    async def Oversee(self):
+    async def Oversee(self,ghost:bool=False):
         self._log.info("開始監視 "+self.channel)
         self._last_time=await self.GetLastMessageTime()
         self._log.info("取得 "+self.channel+" 的歷史訊息")
@@ -104,16 +104,16 @@ class Monitor(object):
                 await self.SendReport(data)
             self._log.info("更新了 "+self.channel+" 的 "+str(len(data))+" 條訊息")
         self._log.info("開始常駐監聽 "+self.channel)
-        SUBSCRIBE=r"""SUBSCRIBE
-destination:/topic/{0}""".format(self.channel)
-        LOGIN=r"""CONNECT
-login:{{"accessToken":"{0}", "nickname":"DiscordBot"}}""".format(await self.GetToken())
+        SUBSCRIBE='SUBSCRIBE\ndestination:/topic/{0}'.format(self.channel)
+        LOGIN='CONNECT\nlogin:{{"accessToken":"{0}", "nickname":"Discord#Bot"}}'.format(await self.GetToken())
+        SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", "senderNickName":"{nickname}", "anchorUsername":"", "content":"hi", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
         async with websockets.connect("wss://ws.kekeke.cc/com.liquable.hiroba.websocket") as ws:
-            await ws.send(LOGIN)
+            if not ghost:
+                await ws.send(LOGIN)
             await ws.send(SUBSCRIBE)
             while not ws.closed:
                 try:
-                    data=await asyncio.wait_for(ws.recv(), timeout=60)
+                    data=await asyncio.wait_for(ws.recv(), timeout=120)
                     self._log.debug(data)
                     if data[:7]=="MESSAGE":
                         m_raw=re.search(r"{.+",data,re.IGNORECASE).group(0)
@@ -121,9 +121,18 @@ login:{{"accessToken":"{0}", "nickname":"DiscordBot"}}""".format(await self.GetT
                         if m:
                             async with self.stdout.typing():
                                 await self.SendReport([m])
+                            if m.content[:6]==".speak" and m.ID=="3b0f2a3a8a2a35a9c9727f188772ba095b239668":
+                                nick=re.search(r"(?<=@)\S+",m.content,re.IGNORECASE)
+                                try:
+                                    ws.send(SPEAK.format(topic=self.channel,id=m.metionIDs[0],nickname=nick.group(0),time="0"))
+                                except:
+                                    self._log.warning("force speck failed")
+                                    pass
+
                 except asyncio.TimeoutError:
                     self._log.info("PING "+self.channel)
                     await ws.ping(data="PING")
+            self._log.warning(self.channel+" 的連線已被關閉")
         
 
             
