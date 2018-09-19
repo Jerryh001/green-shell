@@ -71,7 +71,7 @@ async def on_message(message:discord.Message):
        
 @bot.command()
 async def kekeke(ctx:commands.Context):
-    detector=kd.KWDetector(bot.get_channel(483268806072991794))
+    detector=kd.Detector(bot.get_channel(483268806072991794))
     try:
         await detector.PeriodRun(30)
         await ctx.send("stopped kekeke HP moniter")
@@ -83,7 +83,7 @@ overseeing_list={}
 
 @bot.command()
 async def oversee(ctx:commands.Context,channel:discord.TextChannel):
-    monitor=km.KekekeMonitor(channel.name,channel)
+    monitor=km.Monitor(channel.name,channel)
     url=r"https://kekeke.cc/"+channel.name
     if channel.topic != url:
         await channel.edit(topic=url)

@@ -2,7 +2,7 @@ from kekeke import *
 import websockets
 from .message import Message,MessageType
 
-class KekekeMonitor(object):
+class Monitor(object):
     _url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     _payload = r"7|0|6|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getLeftMessages|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|6|"
@@ -51,7 +51,7 @@ class KekekeMonitor(object):
             self._last_time=message.time
             if message.url:
                 if re.search(r"^https?://\S+\.(jpe?g|png|gif)$",message.url,re.IGNORECASE):
-                    if message.type==MessageType.deleteimage:
+                    if message.mtype==MessageType.deleteimage:
                         embed.set_thumbnail(url=message.url)
                     else:
                         embed.set_image(url=message.url)
@@ -104,6 +104,7 @@ class KekekeMonitor(object):
             while not ws.closed:
                 try:
                     data=await asyncio.wait_for(ws.recv(), timeout=60)
+                    self._log.debug(data)
                     if data[:7]=="MESSAGE":
                         m_raw=re.search(r"{.+",data,re.IGNORECASE).group(0)
                         m=Message.loadjson(m_raw)
@@ -118,4 +119,4 @@ class KekekeMonitor(object):
             
 
 if __name__=="__main__":
-    asyncio.get_event_loop().run_until_complete(KekekeMonitor("ffrk",None).GetChannelHistoryMessages())
+    asyncio.get_event_loop().run_until_complete(Monitor("ffrk",None).GetChannelHistoryMessages())

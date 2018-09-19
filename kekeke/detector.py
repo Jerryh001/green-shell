@@ -62,7 +62,7 @@ class Channel(object):
         self.thumbnail=thumbnail
 
 
-class KWDetector(object):
+class Detector(object):
     _url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     _payload = r"7|0|4|https://kekeke.cc/com.liquable.hiroba.home.gwt.HomeModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getLatestSquares|1|2|3|4|0|"
@@ -173,4 +173,4 @@ class KWDetector(object):
 
 
 if __name__=="__main__":
-    asyncio.get_event_loop().run_until_complete(KWDetector(None).Detect())
+    asyncio.get_event_loop().run_until_complete(Detector(None).Detect())
