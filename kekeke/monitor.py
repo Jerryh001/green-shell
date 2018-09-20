@@ -59,8 +59,8 @@ class Monitor(object):
             self._last_time=await self.GetLastMessageTime()
         for message in reversed(data):
             embed=discord.Embed(description=message.content,timestamp=message.time)
-            embed.set_footer(text=message.ID)
-            embed.set_author(name=message.ID[:5]+"@"+message.nickname)
+            embed.set_footer(text=message.user.ID)
+            embed.set_author(name=message.user.ID[:5]+"@"+message.user.nickname)
             self._last_time=message.time
             if message.url:
                 if re.search(r"^https?://\S+\.(jpe?g|png|gif)$",message.url,re.IGNORECASE):
