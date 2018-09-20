@@ -157,17 +157,19 @@ class Monitor(object):
             self._log.warning(self.channel+" 的連線已被關閉")
     async def _RunCommand(self,ws,message:Message):
         args=message.content.split()
-        if args[0][1:]=="speak" and len(args)>=2:
-            SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", "senderNickName":"{nickname}", "anchorUsername":"", "content":"<強制發送訊息>", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
+        if args[0][1:]=="talk" and len(args)>=2:
+            SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", {colorarg} "senderNickName":"{nickname}", "anchorUsername":"", "content":"<強制發送訊息>", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
             if message.metionUsers:
                 for muser in message.metionUsers[0]:
-                    await ws.send(SPEAK.format(topic=self.channel,id=muser.ID,nickname=muser.ID[:5]+"#"+muser.nickname,time=str(int(time.time()*1000))))
+                    colorarg='"senderColorToken":"{color}",'.format(color=muser.color) if muser.color else ""
+                    await ws.send(SPEAK.format(topic=self.channel,colorarg=colorarg,id=muser.ID,nickname=muser.ID[:5]+"#"+muser.nickname,time=str(int(time.time()*1000))))
             else:
                 name=args[1]
                 onlines=await self.GetOnlineUsers()
                 for user in onlines:
                     if user.nickname == name:
-                        await ws.send(SPEAK.format(topic=self.channel,id=user.ID,nickname=user.ID[:5]+"#"+user.nickname,time=str(int(time.time()*1000))))
+                        colorarg='"senderColorToken":"{color}",'.format(color=user.color) if user.color else ""
+                        await ws.send(SPEAK.format(topic=self.channel,id=user.ID,colorarg=colorarg,nickname=user.ID[:5]+"#"+user.nickname,time=str(int(time.time()*1000))))
 
 
 
