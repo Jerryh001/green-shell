@@ -100,6 +100,20 @@ class Monitor(object):
             await asyncio.sleep(period)
         self._log.info("stopped "+self.channel+" moniter")
 
+    async def GetOnlineUsers(self):
+        _payload = r"7|0|6|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getCrowd|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|6|"
+        async with aiohttp.request("POST",self._url, data=_payload.format(self.channel),headers=self._header) as r:
+            resp = await r.text()
+        if resp[:4]==r"//OK":
+            j=json.loads(resp[4:])
+            j.reverse()
+            ans=[]
+            keys=j[2]
+            for i in range(5,len(j),6):
+                ans.append(User(name=keys[j[i+4]-1],ID=keys[j[i+3]-1],color=keys[j[i+2]-1] if j[i+2]>0 else ""))
+            return ans
+        return []
+
     async def GetToken(self):
         _payload = r"7|0|7|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|startSquare|com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|0|0|6|7|"
         async with aiohttp.request("POST",self._url, data=_payload.format(self.channel),headers=self._header) as r:
@@ -119,7 +133,6 @@ class Monitor(object):
         self._log.info("開始常駐監聽 "+self.channel)
         SUBSCRIBE='SUBSCRIBE\ndestination:/topic/{0}'.format(self.channel)
         LOGIN='CONNECT\nlogin:{{"accessToken":"{0}", "nickname":"Discord#Bot"}}'.format(await self.GetToken())
-        SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", "senderNickName":"{nickname}", "anchorUsername":"", "content":"hi", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
         async with websockets.connect("wss://ws.kekeke.cc/com.liquable.hiroba.websocket") as ws:
             if not ghost:
                 await ws.send(LOGIN)
@@ -134,19 +147,30 @@ class Monitor(object):
                         if m:
                             async with self.stdout.typing():
                                 await self.SendReport([m])
-                            if m.content[:6]==".speak" and m.user.ID=="3b0f2a3a8a2a35a9c9727f188772ba095b239668":
-                                try:
-                                    muser:User=m.metionUsers[0]
-                                    await ws.send(SPEAK.format(topic=self.channel,id=muser.ID,nickname=muser.nickname,time=str(int(time.time()*1000))))
-                                except:
-                                    self._log.warning("force speck failed")
-                                    pass
+                            if m.content[0]=="." and m.user.ID=="3b0f2a3a8a2a35a9c9727f188772ba095b239668":
+                                self._RunCommand(ws,m)
+                            
 
                 except asyncio.TimeoutError:
                     self._log.info("PING "+self.channel)
                     await ws.ping(data="PING")
             self._log.warning(self.channel+" 的連線已被關閉")
-        
+    async def _RunCommand(self,ws,message:Message):
+        args=message.content.split()
+        if args[0][1:]=="speak" and len(args)>=2:
+            SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", "senderNickName":"{nickname}", "anchorUsername":"", "content":"<強制發送訊息>", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
+            if message.metionUsers:
+                for muser in message.metionUsers[0]:
+                    await ws.send(SPEAK.format(topic=self.channel,id=muser.ID,nickname=muser.ID[:5]+"#"+muser.nickname,time=str(int(time.time()*1000))))
+            else:
+                name=args[1]
+                onlines=await self.GetOnlineUsers()
+                for user in onlines:
+                    if user.nickname == name:
+                        await ws.send(SPEAK.format(topic=self.channel,id=user.ID,nickname=user.ID[:5]+"#"+user.nickname,time=str(int(time.time()*1000))))
+
+
+
 
             
 
