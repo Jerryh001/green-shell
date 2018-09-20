@@ -1,4 +1,5 @@
 import asyncio
+import html
 import json
 import logging
 import re
@@ -158,18 +159,19 @@ class Monitor(object):
     async def _RunCommand(self,ws,message:Message):
         args=message.content.split()
         if args[0][1:]=="talk" and len(args)>=2:
-            SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", {colorarg} "senderNickName":"{nickname}", "anchorUsername":"", "content":"<強制發送訊息>", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
+            SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", {colorarg} "senderNickName":"{nickname}", "anchorUsername":"", "content":"{content}", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
+            content=html.escape("<強制發送訊息>")
             if message.metionUsers:
                 for muser in message.metionUsers[0]:
                     colorarg='"senderColorToken":"{color}",'.format(color=muser.color) if muser.color else ""
-                    await ws.send(SPEAK.format(topic=self.channel,colorarg=colorarg,id=muser.ID,nickname=muser.ID[:5]+"#"+muser.nickname,time=str(int(time.time()*1000))))
+                    await ws.send(SPEAK.format(topic=self.channel,colorarg=colorarg,id=muser.ID,nickname=muser.ID[:5]+"#"+muser.nickname,content=content,time=str(int(time.time()*1000))))
             else:
                 name=args[1]
                 onlines=await self.GetOnlineUsers()
                 for user in onlines:
                     if user.nickname == name:
                         colorarg='"senderColorToken":"{color}",'.format(color=user.color) if user.color else ""
-                        await ws.send(SPEAK.format(topic=self.channel,id=user.ID,colorarg=colorarg,nickname=user.ID[:5]+"#"+user.nickname,time=str(int(time.time()*1000))))
+                        await ws.send(SPEAK.format(topic=self.channel,id=user.ID,colorarg=colorarg,nickname=user.ID[:5]+"#"+user.nickname,content=content,time=str(int(time.time()*1000))))
 
 
 
