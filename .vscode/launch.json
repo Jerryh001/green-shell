@@ -15,7 +15,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/GreenShell.py",
-            "envFile": "${workspaceFolder}/data/debug.env"
+            "envFile": "${workspaceFolder}/data/.env"
         }
     ]
 }

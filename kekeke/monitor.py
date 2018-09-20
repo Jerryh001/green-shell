@@ -1,6 +1,19 @@
-from kekeke import *
+import asyncio
+import json
+import logging
+import re
+import time
+from datetime import datetime, timezone
+
+import aiohttp
+import discord
+import tzlocal
 import websockets
-from .message import Message,MessageType
+
+from .message import Message, MessageType
+
+from.user import User
+
 
 class Monitor(object):
     _url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
@@ -121,10 +134,10 @@ class Monitor(object):
                         if m:
                             async with self.stdout.typing():
                                 await self.SendReport([m])
-                            if m.content[:6]==".speak" and m.ID=="3b0f2a3a8a2a35a9c9727f188772ba095b239668":
-                                nick=re.search(r"(?<=@)\S+",m.content,re.IGNORECASE)
+                            if m.content[:6]==".speak" and m.user.ID=="3b0f2a3a8a2a35a9c9727f188772ba095b239668":
                                 try:
-                                    await ws.send(SPEAK.format(topic=self.channel,id=m.metionIDs[0],nickname=nick.group(0),time="0"))
+                                    muser:User=m.metionUsers[0]
+                                    await ws.send(SPEAK.format(topic=self.channel,id=muser.ID,nickname=muser.nickname,time=str(int(time.time()*1000))))
                                 except:
                                     self._log.warning("force speck failed")
                                     pass

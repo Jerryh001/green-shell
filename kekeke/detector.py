@@ -1,5 +1,17 @@
-from kekeke import *
-#from .message import Message,MessageType
+import asyncio
+import html
+import json
+import logging
+import os
+import re
+from datetime import datetime, timezone
+
+import aiohttp
+import discord
+import tzlocal
+from discord.ext import commands
+
+
 class DetectDetail(object):
     isdetect:bool=False
     loc:tuple=(0,0)
@@ -74,8 +86,8 @@ class Detector(object):
 
     def KeywordLoad(self):
         dirname = os.getcwd()
-        self._keyword_list=json.load(open(path.join(dirname, "data/keyword.json"), 'r',encoding='utf8'))
-        self._trusted_list=json.load(open(path.join(dirname, "data/trusted_user.json"), 'r',encoding='utf8'))
+        self._keyword_list=json.load(open(os.path.join(dirname, "data/keyword.json"), 'r',encoding='utf8'))
+        self._trusted_list=json.load(open(os.path.join(dirname, "data/trusted_user.json"), 'r',encoding='utf8'))
     async def GetHPMessages(self):
         try:
             async with aiohttp.request("POST",self._url, data=self._payload,headers=self._header) as r:

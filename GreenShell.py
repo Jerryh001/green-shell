@@ -1,19 +1,20 @@
-import discord
-from discord.ext import commands
-import importlib
-import signal
 import asyncio
-import concurrent.futures
+import importlib
 import logging
 import os
-from kekeke import monitor as km,detector as kd
-import boto3
 import re
+import signal
+from concurrent import futures
+
+import boto3
+import discord
+from discord.ext import commands
+
+from kekeke import *
 
 TOKEN=os.getenv("DISCORD_TOKEN")
 PREFIX=os.getenv("DISCORD_PREFIX")
 CUBENAME="dc1rgs6wmts7"
-
 bot = commands.Bot(command_prefix=PREFIX,owner_id=152965086951112704)
 
 overseeing_list={}
@@ -58,7 +59,9 @@ async def update(ctx,filemessage:DataFile):
         logging.error("更新 "+filename+" 失敗")
         await ctx.send("更新`"+filename+"`失敗")
         
-
+@bot.check_once
+def _IsAllowRun(ctx:commands.Context):
+    return (await ctx.me.is_owner(ctx.author) or ctx.author==ctx.me) and ctx.channel.id==483242913807990806
 
 @bot.event
 async def on_ready():
@@ -66,40 +69,48 @@ async def on_ready():
     logging.info("Logged in as {0.user.name}({0.user.id})".format(bot))
     await bot.get_channel(483242913807990806).send(bot.user.name+"已上線"+PREFIX)
 
-@bot.event
-async def on_message(message:discord.Message):
-    if await (bot.is_owner(message.author) or message.author==bot.user) and message.channel.id==483242913807990806:
-        await bot.process_commands(message)
        
-@bot.command()
-async def kekeke(ctx:commands.Context):
-    detector=kd.Detector(bot.get_channel(483268806072991794))
+@bot.command(name="kekeke")
+async def _kekeke(ctx:commands.Context):
+    
+    kd=Detector(bot.get_channel(483268806072991794))
     try:
-        await detector.PeriodRun(30)
+        await kd.PeriodRun(30)
         await ctx.send("stopped kekeke HP moniter")
     except:
         logging.error("moniter kekeke HP stopped unexcept")
         await ctx.send("moniter kekeke HP stopped unexcept")
 
 
-
-@bot.command()
-async def oversee(ctx:commands.Context,channel:discord.TextChannel,ghost:bool=False):
-    monitor=km.Monitor(channel.name,channel)
-    url=r"https://kekeke.cc/"+channel.name
-    if channel.topic != url:
-        await channel.edit(topic=url)
-    task=bot.loop.create_task(monitor.Oversee(ghost))
+@bot.command(aliases=["o"])
+async def oversee(ctx:commands.Context,*,channel:discord.TextChannel,ghost:bool=False):
+    km=Monitor(channel.name,channel)
+    task=bot.loop.create_task(km.Oversee(ghost))
     overseeing_list[channel.name]=task
     try:
         await task
-    except concurrent.futures.CancelledError:
-        logging.info("已停止監視 "+channel.name)
-        await ctx.send("已停止監視`"+channel.name+"`")
+    except futures.CancelledError:
+        pass
     except:
-        overseeing_list.pop(channel.name)
         logging.error("監視 "+channel.name+" 時發生錯誤")
         await ctx.send("監視`"+channel.name+"`時發生錯誤")
+
+@oversee.before_invoke
+async def _BeforeOversee(ctx:commands.Context):
+    channel:discord.TextChannel=ctx.kwargs["channel"]
+    url=r"https://kekeke.cc/"+channel.name
+    if channel.topic != url:
+        await channel.edit(topic=url)
+
+@oversee.after_invoke
+async def _AfterOversee(ctx:commands.Context):
+    name:str=ctx.kwargs["channel"].name
+    try:
+        overseeing_list.pop(name)
+    except:
+        pass
+    logging.info("已停止監視 "+name)
+    await ctx.send("已停止監視`"+name+"`")
     
 
 @bot.command()
@@ -176,6 +187,7 @@ async def SIGTERM_exit():
 def SIG_EXIT():
     logging.warning(bot.user.name+" has stopped by SIGTERM-")
     print("bye")
+    raise KeyboardInterrupt
 if __name__=="__main__":
     logging.basicConfig(level=logging.WARNING)
     bot.remove_command('help')
