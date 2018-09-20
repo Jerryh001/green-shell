@@ -148,7 +148,7 @@ class Monitor(object):
                             async with self.stdout.typing():
                                 await self.SendReport([m])
                             if m.content[0]=="." and m.user.ID=="3b0f2a3a8a2a35a9c9727f188772ba095b239668":
-                                self._RunCommand(ws,m)
+                                await self._RunCommand(ws,m)
                             
 
                 except asyncio.TimeoutError:
