@@ -60,7 +60,7 @@ async def update(ctx,filemessage:DataFile):
         await ctx.send("更新`"+filename+"`失敗")
         
 @bot.check_once
-def _IsAllowRun(ctx:commands.Context):
+async def _IsAllowRun(ctx:commands.Context):
     return ((await ctx.me.is_owner(ctx.author)) or ctx.author==ctx.me) and ctx.channel.id==483242913807990806
 
 @bot.event
