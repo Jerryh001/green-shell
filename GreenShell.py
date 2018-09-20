@@ -61,7 +61,7 @@ async def update(ctx,filemessage:DataFile):
         
 @bot.check_once
 async def _IsAllowRun(ctx:commands.Context):
-    return ((await ctx.me.is_owner(ctx.author)) or ctx.author==ctx.me) and ctx.channel.id==483242913807990806
+    return ((await bot.is_owner(ctx.author)) or ctx.author==ctx.me) and ctx.channel.id==483242913807990806
 
 @bot.event
 async def on_ready():
