@@ -45,7 +45,7 @@ class Message:
             metionIDs=message["payload"]["replyPublicIds"]
             names=re.findall(r"(?<=@)\S+",message["content"],re.IGNORECASE)
             prefix="?#" if len(names) != len(metionIDs) else ""
-            for i in range(metionIDs):
+            for i in range(len(metionIDs)):
                 if i<len(names):
                     metionUsers.append(User(name=prefix+names[i],ID=metionIDs[i]))
                 else:

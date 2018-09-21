@@ -157,17 +157,21 @@ class Monitor(object):
                     await ws.ping(data="PING")
             self._log.warning(self.channel+" 的連線已被關閉")
     async def _RunCommand(self,ws,message:Message):
-        args=message.content.split()
-        if args[0][1:]=="talk" and len(args)>=2:
+        args=message.content[1:].split()
+        if args[0]=="talk" and len(args)>=2:
             SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", {colorarg} "senderNickName":"{nickname}", "anchorUsername":"", "content":"{content}", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
             content=html.escape("<強制發送訊息>")
+            onlines=await self.GetOnlineUsers()
             if message.metionUsers:
                 for muser in message.metionUsers:
+                    for user in onlines:
+                        if user.ID==muser.ID:
+                            muser.color=user.color
+                            break
                     colorarg='"senderColorToken":"{color}",'.format(color=muser.color) if muser.color else ""
                     await ws.send(SPEAK.format(topic=self.channel,colorarg=colorarg,id=muser.ID,nickname=muser.ID[:5]+"#"+muser.nickname,content=content,time=str(int(time.time()*1000))))
             else:
                 name=args[1]
-                onlines=await self.GetOnlineUsers()
                 for user in onlines:
                     if user.nickname == name:
                         colorarg='"senderColorToken":"{color}",'.format(color=user.color) if user.color else ""
