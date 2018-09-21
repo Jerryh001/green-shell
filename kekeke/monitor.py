@@ -162,7 +162,7 @@ class Monitor(object):
             SPEAK='SEND\ndestination:/topic/{topic}\n\n{{"senderPublicId":"{id}", {colorarg} "senderNickName":"{nickname}", "anchorUsername":"", "content":"{content}", "date":"{time}", "eventType":"CHAT_MESSAGE", "payload":{{}}}}'
             content=html.escape("<強制發送訊息>")
             if message.metionUsers:
-                for muser in message.metionUsers[0]:
+                for muser in message.metionUsers:
                     colorarg='"senderColorToken":"{color}",'.format(color=muser.color) if muser.color else ""
                     await ws.send(SPEAK.format(topic=self.channel,colorarg=colorarg,id=muser.ID,nickname=muser.ID[:5]+"#"+muser.nickname,content=content,time=str(int(time.time()*1000))))
             else:
