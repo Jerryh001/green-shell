@@ -1,3 +1,4 @@
+__all__=["User"]
 class User:
     def __init__(self,name:str="",ID:str="",color:str=""):
         self.nickname=name

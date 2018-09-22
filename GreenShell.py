@@ -16,7 +16,8 @@ TOKEN=os.getenv("DISCORD_TOKEN")
 PREFIX=os.getenv("DISCORD_PREFIX")
 CUBENAME="dc1rgs6wmts7"
 bot = commands.Bot(command_prefix=PREFIX,owner_id=152965086951112704)
-
+global kbot
+kbot=None
 overseeing_list={}
 
 def DownloadAllFiles():
@@ -83,8 +84,9 @@ async def _kekeke(ctx:commands.Context):
 
 
 @bot.command(aliases=["o"])
+
 async def oversee(ctx:commands.Context,*,channel:discord.TextChannel,ghost:bool=False):
-    km=Monitor(channel.name,channel)
+    km=Monitor(channel.name,channel,kbot)
     task=bot.loop.create_task(km.Oversee(ghost))
     overseeing_list[channel.name]=task
     try:
@@ -97,6 +99,9 @@ async def oversee(ctx:commands.Context,*,channel:discord.TextChannel,ghost:bool=
 
 @oversee.before_invoke
 async def _BeforeOversee(ctx:commands.Context):
+    global kbot
+    if not kbot:
+        kbot=await KBot.CreateBot()
     channel:discord.TextChannel=ctx.kwargs["channel"]
     url=r"https://kekeke.cc/"+channel.name
     if channel.topic != url:
@@ -105,6 +110,7 @@ async def _BeforeOversee(ctx:commands.Context):
 @oversee.after_invoke
 async def _AfterOversee(ctx:commands.Context):
     name:str=ctx.kwargs["channel"].name
+    kbot.Unsubscribe(name)
     try:
         overseeing_list.pop(name)
     except:
@@ -190,7 +196,7 @@ def SIG_EXIT():
     raise KeyboardInterrupt
 if __name__=="__main__":
     logging.basicConfig(level=logging.WARNING)
-    bot.remove_command('help')
+    #bot.remove_command('help')
     try:
         signal.signal(signal.SIGTERM, SIG_EXIT)
         bot.loop.add_signal_handler(signal.SIGTERM,SIG_EXIT)
