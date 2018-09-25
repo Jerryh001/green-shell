@@ -8,14 +8,14 @@ from concurrent import futures
 
 import boto3
 import discord
+import redis
 from discord.ext import commands
 
 from kekeke import *
 
-TOKEN=os.getenv("DISCORD_TOKEN")
-PREFIX=os.getenv("DISCORD_PREFIX")
-CUBENAME="dc1rgs6wmts7"
-bot = commands.Bot(command_prefix=PREFIX,owner_id=152965086951112704)
+
+CUBENAME=re.search(r"(?<=/)[^/]+$",os.getenv("CLOUDCUBE_URL"),re.IGNORECASE).group(0)
+bot = commands.Bot(command_prefix=os.getenv("DISCORD_PREFIX"),owner_id=152965086951112704)
 global kbot
 kbot=None
 overseeing_list={}
@@ -68,7 +68,7 @@ async def _IsAllowRun(ctx:commands.Context):
 async def on_ready():
     DownloadAllFiles()
     logging.info("Logged in as {0.user.name}({0.user.id})".format(bot))
-    await bot.get_channel(483242913807990806).send(bot.user.name+"已上線"+PREFIX)
+    await bot.get_channel(483242913807990806).send(bot.user.name+"已上線"+bot.command_prefix)
 
        
 @bot.command(name="kekeke")
@@ -204,4 +204,4 @@ if __name__=="__main__":
     except NotImplementedError:
         pass #run in windows
 
-    bot.run(TOKEN)
+    bot.run(os.getenv("DISCORD_TOKEN"))

@@ -63,7 +63,7 @@ class Bot():
                         if m:
                             channel=msg_list[1][len("destination:/topic/"):]
                             self.message_queue[channel].put(m)
-                            if m.content[0]=="." and m.user.ID=="3b0f2a3a8a2a35a9c9727f188772ba095b239668":
+                            if m.content[0]=="." and (m.user.ID in ["3b0f2a3a8a2a35a9c9727f188772ba095b239668","5df087e5e341f555b0401fb69f89b5937ae7e313"]):
                                 await self._RunCommand(m,channel)
 
     async def _RunCommand(self,message:Message,channel:str):
