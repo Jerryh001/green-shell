@@ -93,6 +93,7 @@ class Bot():
             
 
     async def Talk(self,user:User,channel:str,content:str="<強制發送訊息>"):
+        user.nickname=user.ID[:5]+"#"+user.nickname
         msg=Message(mtype=MessageType.chat,time=tzlocal.get_localzone().localize(datetime.now()),user=user,content=content)
         await self.SendMessage(channel,msg)
 
@@ -110,10 +111,12 @@ class Bot():
                             break
                     if senduser:
                         break
-                    elif onlineuser.nickname == args[1]:
-                        senduser=onlineuser
-                senduser.nickname=senduser.ID[:5]+"#"+senduser.nickname
-                await self.Talk(senduser,channel,"<強制發送訊息>")
+                if not senduser:
+                    for onlineuser in self.online_users[channel]:
+                        if onlineuser.nickname == args[1]:
+                            senduser=onlineuser
+                            break
+                await self.Talk(senduser,channel)
                 return
             elif args[0]=="電光石火":
                 self.lightning=not self.lightning
