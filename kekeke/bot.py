@@ -68,10 +68,10 @@ class Bot():
                             channel=msg_list[1][len("destination:/topic/"):]
                             self.message_queue[channel].put(m)
                             if m.content[0]==".":
-                                await self._RunCommand(m,channel)
+                                asyncio.get_event_loop().create_task(self._RunCommand(m,channel))
                     elif msg_list[2][len("publisher:"):]=="SERVER":
                         m=Message.loadjson(msg_list[3])
-                        if m.mtype==MessageType.population:
+                        if m and m.mtype==MessageType.population:
                             await self.UpdateOnlineUsers(msg_list[1][len("destination:/topic/"):])
 
 

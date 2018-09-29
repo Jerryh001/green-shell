@@ -109,7 +109,7 @@ async def _BeforeOversee(ctx:commands.Context):
 @oversee.after_invoke
 async def _AfterOversee(ctx:commands.Context):
     name:str=ctx.kwargs["channel"].name
-    kbot.Unsubscribe(name)
+    await kbot.Unsubscribe(name)
     try:
         overseeing_list.pop(name)
     except:
