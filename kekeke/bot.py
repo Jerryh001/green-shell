@@ -21,6 +21,7 @@ class Bot():
     subchannel=[]
     message_queue=dict()
     online_users=dict()
+    last_forcetalk=dict()
     @classmethod
     async def CreateBot(cls,ghost=False):
         self=cls()
@@ -76,12 +77,18 @@ class Bot():
 
     async def UpdateOnlineUsers(self,channel:str):
         onlines=await self.GetOnlineUsers(channel)
+        history=await self.GetChannelHistoryMessages(channel)
+        last_time:datetime=history[-1].time
+        if channel not in self.last_forcetalk:
+            self.last_forcetalk[channel]=dict()
         if channel in self.online_users:
             onlines_old=self.online_users[channel]
             if self.lightning:
                 for user in onlines:
                     if user not in onlines_old and (user.nickname.find("誰啊")>=0 or user.nickname.find("unknown")>=0):
-                        await self.Talk(user,channel)
+                        if user.ID not in self.last_forcetalk[channel] or self.last_forcetalk[channel][user.ID]<last_time:
+                            self.last_forcetalk[channel][user.ID]=tzlocal.get_localzone().localize(datetime.now())
+                            await self.Talk(user,channel)
         self.online_users[channel]=onlines
             
 
