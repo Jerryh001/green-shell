@@ -12,6 +12,7 @@ import tzlocal
 import websockets
 
 from .bot import Bot as KBot
+from .GWTpayload import GWTPayload
 from .message import Message, MessageType
 from .user import User
 
@@ -62,8 +63,9 @@ class Monitor(object):
 
 
     async def GetToken(self):
-        _payload = r"7|0|7|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|startSquare|com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|0|0|6|7|"
-        async with aiohttp.request("POST",self._url, data=_payload.format(self.channel),headers=self._header) as r:
+        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","startSquare"])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774",[None,None,"com.liquable.gwt.transport.client.Destination/2061503238","/topic/{0}".format(self.channel)])
+        async with aiohttp.request("POST",self._url, data=_payload.String(),headers=self._header) as r:
             resp = await r.text()
         if resp[:4]==r"//OK":
             token=json.loads(resp[4:])[-3][2]

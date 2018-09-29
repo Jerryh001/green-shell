@@ -14,7 +14,7 @@ class MessageType(Enum):
     chat="CHAT_MESSAGE"
     deleteimage="DELETE_MEDIA"
     other=""
-    #population="NO_OF_CROWD_MESSAGE"
+    population="NO_OF_CROWD_MESSAGE"
 class Message:
     def __init__(self,mtype:MessageType=MessageType.other,time:datetime=datetime.now(),user:User=User(),content:str="",url:str="",metionUsers:list=[]):
         self.mtype=mtype

@@ -4,3 +4,5 @@ class User:
         self.nickname=name
         self.ID=ID
         self.color=color
+    def __eq__(self,that):
+        return isinstance(that,User) and self.ID==that.ID

@@ -13,7 +13,6 @@ from discord.ext import commands
 
 from kekeke import *
 
-
 CUBENAME=re.search(r"(?<=/)[^/]+$",os.getenv("CLOUDCUBE_URL"),re.IGNORECASE).group(0)
 bot = commands.Bot(command_prefix=os.getenv("DISCORD_PREFIX"),owner_id=152965086951112704)
 global kbot

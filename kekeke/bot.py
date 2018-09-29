@@ -9,6 +9,7 @@ from queue import Queue
 import aiohttp
 import tzlocal
 
+from .GWTpayload import GWTPayload
 from .message import Message, MessageType
 from .user import User
 
@@ -19,12 +20,14 @@ class Bot():
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     subchannel=[]
     message_queue=dict()
+    online_users=dict()
     @classmethod
     async def CreateBot(cls,ghost=False):
         self=cls()
         self._log=logging.getLogger(cls.__name__)
         self.session:aiohttp.ClientSession=None
         self.ws:aiohttp.ClientWebSocketResponse=None
+        self.lightning=False
         await self.Connect(ghost)
         return self
 
@@ -63,36 +66,66 @@ class Bot():
                         if m:
                             channel=msg_list[1][len("destination:/topic/"):]
                             self.message_queue[channel].put(m)
-                            if m.content[0]=="." and (m.user.ID in ["3b0f2a3a8a2a35a9c9727f188772ba095b239668","5df087e5e341f555b0401fb69f89b5937ae7e313"]):
+                            if m.content[0]==".":
                                 await self._RunCommand(m,channel)
+                    elif msg_list[2][len("publisher:"):]=="SERVER":
+                        m=Message.loadjson(msg_list[3])
+                        if m.mtype==MessageType.population:
+                            await self.UpdateOnlineUsers(msg_list[1][len("destination:/topic/"):])
+
+
+    async def UpdateOnlineUsers(self,channel:str):
+        onlines=await self.GetOnlineUsers(channel)
+        if channel in self.online_users:
+            onlines_old=self.online_users[channel]
+            if self.lightning:
+                for user in onlines:
+                    if user not in onlines_old and (user.nickname.find("誰啊")>=0 or user.nickname.find("unknown")>=0):
+                        await self.Talk(user,channel)
+        self.online_users[channel]=onlines
+            
+
+    async def Talk(self,user:User,channel:str,content:str="<強制發送訊息>"):
+        msg=Message(mtype=MessageType.chat,time=tzlocal.get_localzone().localize(datetime.now()),user=user,content=content)
+        await self.SendMessage(channel,msg)
 
     async def _RunCommand(self,message:Message,channel:str):
         args=message.content[1:].split()
         if not args:
             return
-        if args[0]=="talk" and len(args)>=2:
-            content="<強制發送訊息>"
-            onlines=await self.GetOnlineUsers(channel)
-            senduser:User=None
-            for onlineuser in onlines:
+        if message.user.ID in ["3b0f2a3a8a2a35a9c9727f188772ba095b239668","5df087e5e341f555b0401fb69f89b5937ae7e313"]:
+            if args[0]=="talk" and len(args)>=2:
+                senduser:User=None
                 for muser in message.metionUsers:
-                    if onlineuser.ID==muser.ID:
-                        senduser=onlineuser
+                    for onlineuser in self.online_users[channel]:
+                        if muser==onlineuser:
+                            senduser=onlineuser
+                            break
+                    if senduser:
                         break
-                
-                if senduser:
-                    break
-                else:
-                    if onlineuser.nickname == args[1]:
+                    elif onlineuser.nickname == args[1]:
                         senduser=onlineuser
-            senduser.nickname=senduser.ID[:5]+"#"+senduser.nickname
-            sendmsg=Message(mtype=MessageType.chat,time=tzlocal.get_localzone().localize(datetime.now()),user=senduser,content=content)
-            await self.SendMessage(channel,sendmsg)
+                senduser.nickname=senduser.ID[:5]+"#"+senduser.nickname
+                await self.Talk(senduser,channel,"<強制發送訊息>")
+                return
+            elif args[0]=="電光石火":
+                self.lightning=not self.lightning
+        else:
+            if args[0]=="rename" and len(args)>=2:
+                await self.Rename(channel,message.user,args[1])
+                return
                     
+    async def Rename(self,channel:str,user:User,name:str):
+        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","updateNickname"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/{0}".format(channel)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082",["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017",user.color if user.color!="" else None,user.ID,user.nickname,user.ID])
+        await self.post(payload=_payload.String())
+        pass
 
     async def GetToken(self,first_channel:str="彩虹小馬實況"):
-        _payload = r"7|0|7|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|startSquare|com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|0|0|6|7|"
-        resp=await self.post(payload=_payload.format(first_channel))
+        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","startSquare"])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774",[None,None,"com.liquable.gwt.transport.client.Destination/2061503238","/topic/{0}".format(first_channel)])
+        resp=await self.post(payload=_payload.String())
         if resp[:4]==r"//OK":
             token=json.loads(resp[4:])[-3][2]
             return token
@@ -150,8 +183,9 @@ class Bot():
         await self.ws.send_str(payload)
 
     async def GetOnlineUsers(self,channel:str):
-        _payload = r"7|0|6|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getCrowd|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|6|"
-        resp = await self.post(payload=_payload.format(channel))
+        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","getCrowd"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/{0}".format(channel)])
+        resp = await self.post(payload=_payload.String())
         ans=[]
         if resp[:4]==r"//OK":
             j=json.loads(resp[4:])
@@ -161,9 +195,10 @@ class Bot():
                 ans.append(User(name=keys[j[i+4]-1],ID=keys[j[i+3]-1],color=keys[j[i+2]-1] if j[i+2]>0 else ""))
         return ans
     async def GetChannelHistoryMessages(self,channel:str,start_from:datetime=None)->list:
-        _payload = r"7|0|6|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getLeftMessages|com.liquable.gwt.transport.client.Destination/2061503238|/topic/{0}|1|2|3|4|1|5|5|6|"
+        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","getLeftMessages"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/{0}".format(channel)])
         ans=[]
-        resp=await self.post(payload=_payload.format(channel))
+        resp=await self.post(payload=_payload.String())
         if resp[:4]==r"//OK":
             data=json.loads(resp[4:])[-3]
             for message_raw in reversed(data):
