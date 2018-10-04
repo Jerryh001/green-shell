@@ -118,7 +118,7 @@ class Bot():
                             break
                 await self.Talk(senduser,channel)
                 return
-            elif args[0]=="電光石火":
+            elif args[0]=="autotalk":
                 self.lightning=not self.lightning
         else:
             if args[0]=="rename" and len(args)>=2:
@@ -178,12 +178,12 @@ class Bot():
             self._log.info("unsubscribe "+channel)
         except ValueError:
             pass
-    async def SendMessage(self,channel:str,message:Message):
+    async def SendMessage(self,channel:str,message:Message,escape:bool=True):
         message_obj={
             "senderPublicId":message.user.ID,
             "senderNickName":message.user.nickname,
             "anchorUsername":"",
-            "content":html.escape(message.content),
+            "content":html.escape(message.content) if escape else message.content,
             "date":str(int(time.time()*1000)),
             "eventType":"CHAT_MESSAGE",
             "payload":{}}
@@ -191,6 +191,9 @@ class Bot():
             message_obj["senderColorToken"]=message.user.color
         payload='SEND\ndestination:/topic/{0}\n\n'.format(channel)+json.dumps(message_obj)
         await self.ws.send_str(payload)
+
+    #async def fake(self,channel:str):
+    #    await self.SendMessage
 
     async def GetOnlineUsers(self,channel:str):
         _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","getCrowd"])
