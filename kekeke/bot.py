@@ -29,8 +29,9 @@ class Bot():
         self.session:aiohttp.ClientSession=None
         self.ws:aiohttp.ClientWebSocketResponse=None
         self.lightning=False
-        self.user=User("Discord#Bot")
-        await self.Connect(ghost)
+        self.ghost=ghost
+        self.user=User("Test#Bot")
+        await self.Connect()
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
@@ -39,7 +40,7 @@ class Bot():
             await self._s_obj.__aexit__(exception_type, exception_value, traceback)
         asyncio.new_event_loop().run_until_complete(_CleanUp(exception_type, exception_value, traceback))
 
-    async def Connect(self,ghost=False):
+    async def Connect(self):
         if not self.session:
             self._s_obj=aiohttp.ClientSession()
             self.session=await self._s_obj.__aenter__()
@@ -47,8 +48,7 @@ class Bot():
             self._ws_obj=self.session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket",heartbeat=120)
             self.ws=await self._ws_obj.__aenter__()
             asyncio.get_event_loop().create_task(self.Listen())
-            if not ghost:
-                await self.Login()
+            await self.Login()
             
     
     async def Login(self):
@@ -59,10 +59,10 @@ class Bot():
             if resp[:4]==r"//OK":
                 break
             else:
-                await asyncio.sleep(50)
+                await asyncio.sleep(5)
         data=json.loads(resp[4:])[-3]
         self.user.ID=data[-1]
-        login_payload={"accessToken":data[2],"nickname":self.user.nickname}
+        login_payload={"accessToken":data[2],"nickname":self.user.nickname if not self.ghost else ""}
         LOGIN='CONNECT\nlogin:'+json.dumps(login_payload)
         await self.ws.send_str(LOGIN)
 
@@ -116,23 +116,18 @@ class Bot():
             if args[0]=="talk" and len(args)>=2:
                 senduser:User=None
                 for muser in message.metionUsers:
-                    for onlineuser in self.online_users[channel]:
-                        if muser==onlineuser:
-                            senduser=onlineuser
-                            break
+                    senduser=await self.findUserByID(channel,muser.ID)
                     if senduser:
                         break
                 if not senduser:
-                    for onlineuser in self.online_users[channel]:
-                        if onlineuser.nickname == args[1]:
-                            senduser=onlineuser
-                            break
-                await self.Talk(senduser,channel)
+                    senduser=await self.findUserByName(channel,args[1])
+                if senduser:
+                    await self.Talk(senduser,channel)
                 return
             elif args[0]=="autotalk":
                 self.lightning=not self.lightning
                 await self.Rename(channel,self.user,self.user.nickname+("⚡" if self.lightning else ""))
-        if args[0]=="rename" and len(args)==2:
+        if args[0]=="rename" and len(args)>=2:
             await self.Rename(channel,message.user,args[1])
             return
                     
@@ -141,6 +136,27 @@ class Bot():
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/{0}".format(channel)])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082",["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017",user.color if user.color!="" else None,user.ID,name,user.ID])
         await self.post(payload=_payload.String())
+
+    async def findUserByID(self,channel:str,ID:str):
+        user=next((x for x in self.online_users[channel] if x.ID==ID),None)
+        if not user:
+            history=await self.GetChannelHistoryMessages(channel)
+            for message in history:
+                if message.user.ID==ID:
+                    user=message.user
+                    break
+        return user
+
+    async def findUserByName(self,channel:str,name:str):
+        user=next((x for x in self.online_users[channel] if x.nickname==name),None)
+        if not user:
+            history=await self.GetChannelHistoryMessages(channel)
+            for message in history:
+                if message.user.nickname==name:
+                    user=message.user
+                    break
+        return user
+
 
 
     async def Close(self):
@@ -194,9 +210,6 @@ class Bot():
             message_obj["senderColorToken"]=message.user.color
         payload='SEND\ndestination:/topic/{0}\n\n'.format(channel)+json.dumps(message_obj)
         await self.ws.send_str(payload)
-
-    #async def fake(self,channel:str):
-    #    await self.SendMessage
 
     async def GetOnlineUsers(self,channel:str):
         _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","getCrowd"])
