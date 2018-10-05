@@ -29,6 +29,7 @@ class Bot():
         self.session:aiohttp.ClientSession=None
         self.ws:aiohttp.ClientWebSocketResponse=None
         self.lightning=False
+        self.user=User("Discord#Bot")
         await self.Connect(ghost)
         return self
 
@@ -51,7 +52,17 @@ class Bot():
             
     
     async def Login(self):
-        login_payload={"accessToken":await self.GetToken(),"nickname":"Test#Bot"}
+        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","startSquare"])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774",[None,None,"com.liquable.gwt.transport.client.Destination/2061503238","/topic/{0}".format("彩虹小馬實況")])
+        while True:
+            resp=await self.post(payload=_payload.String())
+            if resp[:4]==r"//OK":
+                break
+            else:
+                await asyncio.sleep(50)
+        data=json.loads(resp[4:])[-3]
+        self.user.ID=data[-1]
+        login_payload={"accessToken":data[2],"nickname":self.user.nickname}
         LOGIN='CONNECT\nlogin:'+json.dumps(login_payload)
         await self.ws.send_str(LOGIN)
 
@@ -120,25 +131,17 @@ class Bot():
                 return
             elif args[0]=="autotalk":
                 self.lightning=not self.lightning
-        else:
-            if args[0]=="rename" and len(args)>=2:
-                await self.Rename(channel,message.user,args[1])
-                return
+                await self.Rename(channel,self.user,self.user.nickname+("⚡" if self.lightning else ""))
+        if args[0]=="rename" and len(args)==2:
+            await self.Rename(channel,message.user,args[1])
+            return
                     
     async def Rename(self,channel:str,user:User,name:str):
         _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","updateNickname"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/{0}".format(channel)])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082",["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017",user.color if user.color!="" else None,user.ID,user.nickname,user.ID])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082",["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017",user.color if user.color!="" else None,user.ID,name,user.ID])
         await self.post(payload=_payload.String())
-        pass
 
-    async def GetToken(self,first_channel:str="彩虹小馬實況"):
-        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","startSquare"])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774",[None,None,"com.liquable.gwt.transport.client.Destination/2061503238","/topic/{0}".format(first_channel)])
-        resp=await self.post(payload=_payload.String())
-        if resp[:4]==r"//OK":
-            token=json.loads(resp[4:])[-3][2]
-            return token
 
     async def Close(self):
         if self.ws:
