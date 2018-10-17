@@ -30,7 +30,7 @@ class Bot():
         self.ws:aiohttp.ClientWebSocketResponse=None
         self.lightning=False
         self.ghost=ghost
-        self.user=User("Test#Bot")
+        self.user=User("Discord#Bot")
         await self.Connect()
         return self
 
@@ -114,11 +114,7 @@ class Bot():
             return
         if message.user.ID in ["3b0f2a3a8a2a35a9c9727f188772ba095b239668","5df087e5e341f555b0401fb69f89b5937ae7e313"]:
             if args[0]=="talk" and len(args)>=2:
-                senduser:User=None
-                for muser in message.metionUsers:
-                    senduser=await self.findUserByID(channel,muser.ID)
-                    if senduser:
-                        break
+                senduser=await self.findUserInMessage(channel,message)
                 if not senduser:
                     senduser=await self.findUserByName(channel,args[1])
                 if senduser:
@@ -127,8 +123,15 @@ class Bot():
             elif args[0]=="autotalk":
                 self.lightning=not self.lightning
                 await self.Rename(channel,self.user,self.user.nickname+("⚡" if self.lightning else ""))
-        if args[0]=="rename" and len(args)>=2:
-            await self.Rename(channel,message.user,args[1])
+        if args[0]=="rename":
+            if len(args)==2:
+                await self.Rename(channel,message.user,args[1])
+            elif len(args)==3:
+                user=await self.findUserInMessage(channel,message)
+                if not user:
+                    user=await self.findUserByName(channel,args[1])
+                if user:
+                    await self.Rename(channel,user,args[2])
             return
                     
     async def Rename(self,channel:str,user:User,name:str):
@@ -136,6 +139,13 @@ class Bot():
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/{0}".format(channel)])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082",["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017",user.color if user.color!="" else None,user.ID,name,user.ID])
         await self.post(payload=_payload.String())
+
+    async def findUserInMessage(self,channel:str,message:Message):
+        for muser in message.metionUsers:
+            senduser=await self.findUserByID(channel,muser.ID)
+            if senduser:
+                return senduser
+        return None
 
     async def findUserByID(self,channel:str,ID:str):
         user=next((x for x in self.online_users[channel] if x.ID==ID),None)
