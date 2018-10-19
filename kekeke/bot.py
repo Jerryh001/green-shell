@@ -132,7 +132,7 @@ class Bot():
 
     async def Clean(self,channel:str,length:int=100):
         emptymessage=Message(MessageType.chat)
-        for _ in range(length):
+        for _ in range(min(length,100)):
             await self.SendMessage(channel,emptymessage)
 
     async def _RunCommand(self,message:Message,channel:str):
@@ -151,11 +151,8 @@ class Bot():
                 self.lightning=not self.lightning
                 await self.Rename(channel,self.user,self.user.nickname+("⚡" if self.lightning else ""))
             elif args[0]=="clean":
-                if(len(args)>=2 and args[1]==channel):
-                    if(len(args)>=3):
-                        await self.Clean(channel,int(args[2]))
-                    else:
-                        await self.Clean(channel)
+                if(len(args)==3 and args[1]==channel):
+                    await self.Clean(channel,int(args[2]))
 
         if args[0]=="rename":
             if len(args)==2:
