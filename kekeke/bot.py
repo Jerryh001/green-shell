@@ -3,6 +3,7 @@ import html
 import json
 import logging
 import time
+import types
 from datetime import datetime
 from queue import Queue
 
@@ -22,6 +23,26 @@ class Bot():
     message_queue=dict()
     online_users=dict()
     last_forcetalk=dict()
+
+    var_before_callback:dict()
+    var_after_callback:dict()
+
+    # def __setattr__(self, name, value):
+    #     if name in self.var_before_callback:
+    #         func_coro=self.var_before_callback[name]
+    #         if isinstance(func_coro,types.FunctionType):
+    #             func_coro()
+    #         else:
+    #             await func_coro
+    #     super().__setattr__(name, value)
+    #     if name in self.var_after_callback:
+    #         func_coro=self.var_after_callback[name]
+    #         if isinstance(func_coro,types.FunctionType):
+    #             func_coro()
+    #         else:
+    #             await func_coro
+
+
     @classmethod
     async def CreateBot(cls,ghost=False):
         self=cls()
@@ -75,6 +96,8 @@ class Bot():
                 if msg_list[0]=="MESSAGE":
                     if msg_list[2][len("publisher:"):]=="CLIENT_TRANSPORT":
                         m=Message.loadjson(msg_list[3])
+                        if(not m.user.ID):
+                            continue
                         if m:
                             channel=msg_list[1][len("destination:/topic/"):]
                             self.message_queue[channel].put(m)
@@ -89,7 +112,7 @@ class Bot():
     async def UpdateOnlineUsers(self,channel:str):
         onlines=await self.GetOnlineUsers(channel)
         history=await self.GetChannelHistoryMessages(channel)
-        last_time:datetime=history[-1].time
+        last_time:datetime=history[-1].time if len(history)>0 else datetime.now()
         if channel not in self.last_forcetalk:
             self.last_forcetalk[channel]=dict()
         if channel in self.online_users:
@@ -101,12 +124,16 @@ class Bot():
                             self.last_forcetalk[channel][user.ID]=tzlocal.get_localzone().localize(datetime.now())
                             await self.Talk(user,channel)
         self.online_users[channel]=onlines
-            
 
     async def Talk(self,user:User,channel:str,content:str="<強制發送訊息>"):
         user.nickname=user.ID[:5]+"#"+user.nickname
         msg=Message(mtype=MessageType.chat,time=tzlocal.get_localzone().localize(datetime.now()),user=user,content=content)
         await self.SendMessage(channel,msg)
+
+    async def Clean(self,channel:str,length:int=100):
+        emptymessage=Message(MessageType.chat)
+        for _ in range(length):
+            await self.SendMessage(channel,emptymessage)
 
     async def _RunCommand(self,message:Message,channel:str):
         args=message.content[1:].split()
@@ -123,6 +150,13 @@ class Bot():
             elif args[0]=="autotalk":
                 self.lightning=not self.lightning
                 await self.Rename(channel,self.user,self.user.nickname+("⚡" if self.lightning else ""))
+            elif args[0]=="clean":
+                if(len(args)>=2 and args[1]==channel):
+                    if(len(args)>=3):
+                        await self.Clean(channel,int(args[2]))
+                    else:
+                        await self.Clean(channel)
+
         if args[0]=="rename":
             if len(args)==2:
                 await self.Rename(channel,message.user,args[1])
@@ -244,6 +278,8 @@ class Bot():
                 if message_raw[0]!='{':
                     break
                 m_output=Message.loadjson(message_raw)
+                if(not m_output.user.ID):
+                    continue
                 if start_from is not None and start_from>=m_output.time:
                     break
                 self._log.debug(m_output)
