@@ -12,6 +12,7 @@ import tzlocal
 import websockets
 
 from .bot import Bot as KBot
+from .channel import Channel
 from .GWTpayload import GWTPayload
 from .message import Message, MessageType
 from .user import User
@@ -22,8 +23,8 @@ class Monitor(object):
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     _log=logging.getLogger(__name__)
     
-    def __init__(self,channel:str,stdout:discord.TextChannel,bot:KBot):
-        self.channel=channel
+    def __init__(self,name:str,stdout:discord.TextChannel,bot:KBot):
+        self.name=name
         self.stdout=stdout
         self._last_time:datetime=None
         self.bot:KBot=bot
@@ -61,28 +62,20 @@ class Monitor(object):
         except:
             return tzlocal.get_localzone().localize(datetime.min)
 
-
-    async def GetToken(self):
-        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","startSquare"])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774",[None,None,"com.liquable.gwt.transport.client.Destination/2061503238","/topic/{0}".format(self.channel)])
-        async with aiohttp.request("POST",self._url, data=_payload.String(),headers=self._header) as r:
-            resp = await r.text()
-        if resp[:4]==r"//OK":
-            token=json.loads(resp[4:])[-3][2]
-            return token
-    async def Oversee(self,ghost:bool=False):
-        self._log.info("開始監視 "+self.channel)
-        await self.bot.Subscribe(self.channel)
-        self._last_time=await self.GetLastMessageTime()
-        self._log.info("取得 "+self.channel+" 的歷史訊息")
-        data=await self.bot.GetChannelHistoryMessages(channel=self.channel,start_from=self._last_time)
+    async def Oversee(self):
+        self._log.info("開始監視 "+self.name)
+        await self.bot.subscribe(self.name)
+        self.channel:Channel=self.bot.channels[self.name]
+        last_time=await self.GetLastMessageTime()
+        self._log.info("取得 "+self.name+" 的歷史訊息")
+        data=[m for m in self.channel.messages if m.time>last_time]
         if len(data)>0:
             async with self.stdout.typing():
                 await self.SendReport(data)
-            self._log.info("更新了 "+self.channel+" 的 "+str(len(data))+" 條訊息")
-        self._log.info("開始常駐監聽 "+self.channel)
-        while self.bot.IsSubscribe(self.channel):
-            m=await self.bot.ReceiveMessage(self.channel)
-            self._log.debug(data)
+            self._log.info("更新了 "+self.name+" 的 "+str(len(data))+" 條訊息")
+        self._log.info("開始常駐監聽 "+self.name)
+        while self.bot.isSubscribe(self.name):
+            m=await self.channel.waitMessage()
+            self._log.debug(m)
             async with self.stdout.typing():
                 await self.SendReport([m])
