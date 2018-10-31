@@ -164,6 +164,16 @@ class Bot():
                 if user:
                     await self.Rename(channel,user,args[2])
             return
+        elif args[0]=="remove":
+            if len(args)==3:
+                user=await self.findUserInMessage(channel,message)
+                if not user:
+                    user=await self.findUserByName(channel,args[1])
+                if user:
+                    user.nickname=self.user.nickname
+                    send=Message(MessageType.deleteimage,user=user,content="delete "+args[2])
+                    await self.SendMessage(channel,send)
+            return
                     
     async def Rename(self,channel:str,user:User,name:str):
         _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","updateNickname"])
@@ -186,6 +196,8 @@ class Bot():
                 if message.user.ID==ID:
                     user=message.user
                     break
+        if not user:
+            user=User(name=ID[:5],ID=ID)
         return user
 
     async def findUserByName(self,channel:str,name:str):
@@ -245,7 +257,7 @@ class Bot():
             "anchorUsername":"",
             "content":html.escape(message.content) if escape else message.content,
             "date":str(int(time.time()*1000)),
-            "eventType":"CHAT_MESSAGE",
+            "eventType":message.mtype.value,
             "payload":{}}
         if message.user.color:
             message_obj["senderColorToken"]=message.user.color
