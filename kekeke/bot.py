@@ -150,7 +150,7 @@ class Bot():
             elif args[0]=="autotalk":
                 self.lightning=not self.lightning
                 await self.Rename(channel,self.user,self.user.nickname+("⚡" if self.lightning else ""))
-            elif args[0]=="clean":
+            elif args[0]=="clear":
                 if(len(args)==3 and args[1]==channel):
                     await self.Clean(channel,int(args[2]))
 
@@ -172,6 +172,8 @@ class Bot():
                 if user:
                     user.nickname=self.user.nickname
                     send=Message(MessageType.deleteimage,user=user,content="delete "+args[2])
+                    await self.SendMessage(channel,send)
+                    send.user=message.user
                     await self.SendMessage(channel,send)
             return
                     
