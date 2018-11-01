@@ -81,6 +81,13 @@ class Channel:
             await asyncio.sleep(0)
         return self.message_queue.get()
 
+    async def toggleFlag(self,flag:str):
+        if flag in self.flag:
+            self.flag.remove(flag)
+        else:
+            self.flag.add(flag)
+        await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flag))
+
 ############################################commands#######################################
     @command.command(authonly=True)
     async def clear(self, message: Message, *args):
@@ -96,11 +103,7 @@ class Channel:
 
     @command.command(authonly=True)
     async def autotalk(self, message: Message, *args):
-        if "⚡" in self.flag:
-            self.flag.remove("⚡")
-        else:
-            self.flag.add("⚡")
-        await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flag))
+        await self.toggleFlag("⚡")
 
     @command.command()
     async def rename(self, message: Message, *args):
