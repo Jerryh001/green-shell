@@ -52,7 +52,7 @@ class Bot:
     async def subscribe(self, channel: str):
         if channel not in self.channels:
             self.channels[channel] = Channel(self, channel)
-            self.channels[channel].updateUsers()
+            await self.channels[channel].updateUsers()
             SUBSCRIBE_STR = 'SUBSCRIBE\ndestination:/topic/{0}'.format(channel)
             await self._ws.send_str(SUBSCRIBE_STR)
             self._log.info("subscribe "+channel)

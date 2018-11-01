@@ -25,7 +25,7 @@ class Message:
         self.metionUsers=metionUsers
 
     @staticmethod
-    def loadjson(json_str:str):
+    def loadjson(json_str:str)->'Message':
         message=json.loads(json_str)
         mtype:MessageType
         try:
