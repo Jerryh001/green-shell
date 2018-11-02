@@ -83,10 +83,10 @@ class Bot:
             channel: Channel = self.channels[msg_list[1][len("destination:/topic/"):]]
             if publisher == "CLIENT_TRANSPORT":
                 if m and m.user.ID:
-                    await channel.receiveMessage(m)
+                    asyncio.get_event_loop().create_task(channel.receiveMessage(m))
             elif publisher == "SERVER":
                 if m and m.mtype == MessageType.population:
-                    await channel.updateUsers()
+                    asyncio.get_event_loop().create_task(channel.updateUsers())
     async def initMessages(self,channel:str):
         _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","getLeftMessages"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/{0}".format(channel)])

@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import time
+from datetime import datetime
 from queue import Queue
 
 import aiohttp
@@ -29,6 +30,7 @@ class Channel:
         self.commends = dict()
         self.flag = set()
         self.medias = set()
+        self.last_send = dict()
 
     async def updateUsers(self)->set:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
@@ -46,7 +48,7 @@ class Channel:
             self.users = new_users
             if "⚡" in self.flag:
                 for user in joined:
-                    if re.match(r"(誰啊|unknown)", user.nickname):
+                    if re.match(r"(誰啊|unknown)", user.nickname) and (user.ID not in self.last_send or self.last_send[user.ID] < self.messages[-1].time):
                         await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<自動發送>"), showID=True)
             return joined
 
@@ -66,6 +68,7 @@ class Channel:
                         pass
                 else:
                     self.medias.add(media)
+            self.last_send[message.user.ID] = message.time
 
     async def receiveMessage(self, message: Message):
         self.messages.append(message)
@@ -120,19 +123,18 @@ class Channel:
 
     @command.command()
     async def remove(self, message: Message, *args):
-        medias_to_remove=set()
+        medias_to_remove = set()
         if len(args) == 1:
             for media in self.medias:
                 if media.user.ID == message.metionUsers[0].ID:
                     medias_to_remove.add(media)
         elif len(args) >= 2:
-            media = Media(user=message.metionUsers[0], url=args[1])
-            medias_to_remove.add(media)
+            medias_to_remove.add(Media(user=message.metionUsers[0], url=args[1]))
+            medias_to_remove.add(Media(user=message.user, url=args[1]))
         for media in medias_to_remove:
-            user=media.user
-            user.nickname=self.bot.user.nickname
+            user = media.user
+            user.nickname = self.bot.user.nickname
             await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content="delete "+media.url))
-
 
     @command.command(authonly=True)
     async def autotalk(self, message: Message, *args):
