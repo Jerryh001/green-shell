@@ -120,19 +120,19 @@ class Channel:
 
     @command.command(authonly=True)
     async def remove(self, message: Message, *args):
+        medias_to_remove=set()
         if len(args) == 1:
             for media in self.medias:
                 if media.user.ID == message.metionUsers[0].ID:
-                    try:
-                        self.medias.remove(media)
-                    except KeyError:
-                        pass
+                    medias_to_remove.add(media)
         elif len(args) >= 2:
             media = Media(user=message.metionUsers[0], url=args[1])
-            try:
-                self.medias.remove(media)
-            except KeyError:
-                pass
+            medias_to_remove.add(media)
+        for media in medias_to_remove:
+            user=media.user
+            user.nickname=self.bot.user.nickname
+            await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content="delete "+media.url))
+
 
     @command.command(authonly=True)
     async def autotalk(self, message: Message, *args):

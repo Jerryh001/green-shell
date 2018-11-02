@@ -40,7 +40,7 @@ class Monitor(object):
             embed.set_author(name=message.user.ID[:5]+"@"+message.user.nickname)
             self._last_time=message.time
             if message.url:
-                if re.search(r"^https?://\S+\.(jpe?g|png|gif)$",message.url,re.IGNORECASE):
+                if re.search(r"^https?://\S+\.(jp[e]?g|png|gif)$",message.url,re.IGNORECASE):
                     if message.mtype==MessageType.deleteimage:
                         embed.set_thumbnail(url=message.url)
                     else:

@@ -194,7 +194,7 @@ def SIG_EXIT():
     print("bye")
     raise KeyboardInterrupt
 if __name__=="__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARNING)
     #bot.remove_command('help')
     try:
         signal.signal(signal.SIGTERM, SIG_EXIT)
