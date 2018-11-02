@@ -78,7 +78,7 @@ class Channel:
             args = message.content[1:].split()
             if(args[0] in command.commends):
                 self._log.info("命令"+args[0]+":開始執行")
-                asyncio.create_task(command.commends[args[0]](self, message, *(args[1:])))
+                asyncio.get_event_loop().create_task(command.commends[args[0]](self, message, *(args[1:])))
                 self._log.info("命令"+args[0]+":執行完成")
             else:
                 self._log.warning("命令"+args[0]+"不存在")
