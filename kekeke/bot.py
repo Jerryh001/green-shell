@@ -19,9 +19,8 @@ class Bot:
         self._log = logging.getLogger(__name__)
         self._session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
-        self.user = User("Discord#New#Bot")
+        self.user = User("Discord#Bot")
         self.channels = dict()
-        #asyncio.ensure_future(self.Connect())
 
     async def connect(self):
         if not self._session:
