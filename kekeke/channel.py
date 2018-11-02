@@ -118,7 +118,7 @@ class Channel:
                 await self.sendMessage(Message())
             self._log.info("發送"+str(times)+"則空白訊息")
 
-    @command.command(authonly=True)
+    @command.command()
     async def remove(self, message: Message, *args):
         medias_to_remove=set()
         if len(args) == 1:
