@@ -34,7 +34,7 @@ class Monitor(object):
     async def SendReport(self,data:list):
         if self._last_time is None:
             self._last_time=await self.GetLastMessageTime()
-        for message in reversed(data):
+        for message in data:
             embed=discord.Embed(description=message.content,timestamp=message.time)
             embed.set_footer(text=message.user.ID)
             embed.set_author(name=message.user.ID[:5]+"@"+message.user.nickname)
