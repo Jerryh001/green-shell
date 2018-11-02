@@ -13,6 +13,7 @@ import aiohttp
 from kekeke import command
 
 from .GWTpayload import GWTPayload
+from .media import Media
 from .message import Message, MessageType
 from .user import User
 
@@ -27,6 +28,7 @@ class Channel:
         self.users = set()
         self.commends = dict()
         self.flag = set()
+        self.medias = set()
 
     async def updateUsers(self)->set:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
@@ -45,13 +47,32 @@ class Channel:
             if "⚡" in self.flag:
                 for user in joined:
                     if re.match(r"(誰啊|unknown)", user.nickname):
-                        await self.sendMessage(Message(mtype=MessageType.chat,user=user,content="<自動發送>"))
+                        await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<自動發送>"), showID=True)
             return joined
+
+    async def setMessage(self, message_list: list):
+        self.messages = message_list
+        self.medias = set()
+        await self.updateMedia(self.messages)
+
+    async def updateMedia(self, messages: list, reverse=False):
+        for message in messages:
+            if re.search(r"(^https://www\.youtube\.com/.+|^https?://\S+\.(jpe?g|png|gif)$)", message.url, re.IGNORECASE):
+                media = Media(user=message.user, url=message.url, remove=(message.mtype == MessageType.deleteimage))
+                if reverse != media.remove:
+                    try:
+                        self.medias.remove(media)
+                    except KeyError:
+                        pass
+                else:
+                    self.medias.add(media)
 
     async def receiveMessage(self, message: Message):
         self.messages.append(message)
         self.message_queue.put(message)
+        await self.updateMedia([message])
         if len(self.messages) > 100:
+            await self.updateMedia(self.messages[:-100], True)
             self.messages = self.messages[-100:]
         if message.content[0] == ".":
             args = message.content[1:].split()
@@ -62,10 +83,10 @@ class Channel:
             else:
                 self._log.warning("命令"+args[0]+"不存在")
 
-    async def sendMessage(self, message: Message, escape=True):
+    async def sendMessage(self, message: Message, *, showID=False, escape=True):
         message_obj = {
             "senderPublicId": message.user.ID,
-            "senderNickName": message.user.nickname,
+            "senderNickName": (message.user.ID[:5]+"#" if showID else "")+message.user.nickname,
             "anchorUsername": "",
             "content": html.escape(message.content) if escape else message.content,
             "date": str(int(time.time()*1000)),
@@ -81,7 +102,7 @@ class Channel:
             await asyncio.sleep(0)
         return self.message_queue.get()
 
-    async def toggleFlag(self,flag:str):
+    async def toggleFlag(self, flag: str):
         if flag in self.flag:
             self.flag.remove(flag)
         else:
@@ -99,7 +120,19 @@ class Channel:
 
     @command.command(authonly=True)
     async def remove(self, message: Message, *args):
-        pass
+        if len(args) == 1:
+            for media in self.medias:
+                if media.user.ID == message.metionUsers[0].ID:
+                    try:
+                        self.medias.remove(media)
+                    except KeyError:
+                        pass
+        elif len(args) >= 2:
+            media = Media(user=message.metionUsers[0], url=args[1])
+            try:
+                self.medias.remove(media)
+            except KeyError:
+                pass
 
     @command.command(authonly=True)
     async def autotalk(self, message: Message, *args):
