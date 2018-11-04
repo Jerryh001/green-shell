@@ -4,6 +4,7 @@ import html
 import inspect
 import json
 import logging
+import os
 import re
 import time
 from datetime import datetime
@@ -14,12 +15,15 @@ import aiohttp
 from kekeke import command
 
 from .GWTpayload import GWTPayload
+from .jsonfile import JsonFile
 from .media import Media
 from .message import Message, MessageType
 from .user import User
 
 
 class Channel:
+    _notwelcomes = JsonFile(os.path.join(os.getcwd(), "data/keyword.json"))
+
     def __init__(self, bot: "Bot", name: str):
         self.bot = bot
         self.name = name
@@ -48,9 +52,23 @@ class Channel:
             self.users = new_users
             if "⚡" in self.flag:
                 for user in joined:
-                    if re.match(r"(誰啊|unknown)", user.nickname) and (user.ID not in self.last_send or self.last_send[user.ID] < self.messages[-1].time):
-                        await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<自動發送>"), showID=True)
+                    if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[-1].time:
+                        if self.isNotWelcome(user):
+                            await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<我就是GS，快來Ban我>"))
+                        elif re.match(r"(誰啊|unknown)", user.nickname):
+                            await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<自動發送>"))
             return joined
+
+    def isNotWelcome(self, user: User)->bool:
+        keywords = self._notwelcomes.json
+        if user.ID in keywords["ID"]:
+            return True
+
+        for name in keywords["name"]:
+            if re.search(name, user.nickname, re.IGNORECASE):
+                return True
+
+        return False
 
     async def setMessage(self, message_list: list):
         self.messages = message_list
@@ -86,7 +104,7 @@ class Channel:
             else:
                 self._log.warning("命令"+args[0]+"不存在")
 
-    async def sendMessage(self, message: Message, *, showID=False, escape=True):
+    async def sendMessage(self, message: Message, *, showID=True, escape=True):
         message_obj = {
             "senderPublicId": message.user.ID,
             "senderNickName": (message.user.ID[:5]+"#" if showID else "")+message.user.nickname,
@@ -118,7 +136,7 @@ class Channel:
         if(len(args) >= 2 and args[0] == self.name):
             times = clip(int(args[1], 0), 0, 100)
             for _ in range(times):
-                await self.sendMessage(Message())
+                await self.sendMessage(Message(), showID=False)
             self._log.info("發送"+str(times)+"則空白訊息")
 
     @command.command()
