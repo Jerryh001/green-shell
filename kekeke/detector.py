@@ -81,9 +81,9 @@ class Detector(object):
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     _payload = r"7|0|4|https://kekeke.cc/com.liquable.hiroba.home.gwt.HomeModule/|53263EDF7F9313FDD5BD38B49D3A7A77|com.liquable.hiroba.gwt.client.square.IGwtSquareService|getLatestSquares|1|2|3|4|0|"
     _keyword_list = []
-    _keyword_lastmodify = time.gmtime(0)
+    _keyword_lastmodify = tzlocal.get_localzone().localize(datetime.fromtimestamp(0))
     _trusted_list = []
-    _trusted_lastmodify = time.gmtime(0)
+    _trusted_lastmodify = tzlocal.get_localzone().localize(datetime.fromtimestamp(0))
 
     def __init__(self, stdout):
         self.stdout = stdout
@@ -92,13 +92,13 @@ class Detector(object):
     def KeywordLoad(self):
         dirname = os.getcwd()
         keyword_path = os.path.join(dirname, "data/keyword.json")
-        keyword_lastmodify = os.stat(keyword_path).st_mtime
+        keyword_lastmodify = tzlocal.get_localzone().localize(datetime.fromtimestamp(os.path.getmtime(keyword_path)))
         if keyword_lastmodify > self._keyword_lastmodify:
             self._keyword_list = json.load(open(keyword_path, 'r', encoding='utf8'))
             self._keyword_lastmodify = keyword_lastmodify
 
         trusted_path = os.path.join(dirname, "data/trusted_user.json")
-        trusted_lastmodify = os.stat(trusted_path).st_mtime
+        trusted_lastmodify = tzlocal.get_localzone().localize(datetime.fromtimestamp(os.path.getmtime(trusted_path)))
         if trusted_lastmodify > self._trusted_lastmodify:
             self._trusted_list = json.load(open(os.path.join(dirname, "data/trusted_user.json"), 'r', encoding='utf8'))
             self._trusted_lastmodify = trusted_lastmodify
