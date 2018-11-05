@@ -5,6 +5,7 @@ import inspect
 import json
 import logging
 import os
+import random
 import re
 import time
 from datetime import datetime
@@ -35,6 +36,7 @@ class Channel:
         self.flag = set()
         self.medias = set()
         self.last_send = dict()
+        self.muda_users = set()
 
     async def updateUsers(self)->set:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
@@ -86,6 +88,10 @@ class Channel:
                         pass
                 else:
                     self.medias.add(media)
+                    if message.user in self.muda_users:
+                        user = media.user
+                        user.nickname = self.bot.user.nickname
+                        await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda","沒用","無駄"])+" "+media.url), showID=False)
             self.last_send[message.user.ID] = message.time
 
     async def receiveMessage(self, message: Message):
@@ -152,7 +158,18 @@ class Channel:
         for media in medias_to_remove:
             user = media.user
             user.nickname = self.bot.user.nickname
-            await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content="delete "+media.url))
+            await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
+
+    @command.command(authonly=True)
+    async def muda(self, message: Message, *args):
+        if len(args) >= 1:
+            user: User = message.metionUsers[0]
+            if user in self.muda_users:
+                self.muda_users.remove(user)
+            else:
+                self.muda_users.add(user)
+                await self.remove(message,args[0])
+                await self.sendMessage(Message(mtype=MessageType.chat, user=self.bot.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
     @command.command(authonly=True)
     async def autotalk(self, message: Message, *args):
