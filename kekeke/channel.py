@@ -154,7 +154,8 @@ class Channel:
                     medias_to_remove.add(media)
         elif len(args) >= 2:
             medias_to_remove.add(Media(user=message.metionUsers[0], url=args[1]))
-            medias_to_remove.add(Media(user=message.user, url=args[1]))
+            if message.user!=message.metionUsers[0]:
+                medias_to_remove.add(Media(user=message.user, url=args[1]))
         for media in medias_to_remove:
             user = media.user
             user.nickname = self.bot.user.nickname
