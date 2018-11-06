@@ -13,16 +13,18 @@ from .user import User
 class MessageType(Enum):
     chat="CHAT_MESSAGE"
     deleteimage="DELETE_MEDIA"
+    vote="VOTE_MESSAGE"
     other=""
     population="NO_OF_CROWD_MESSAGE"
 class Message:
-    def __init__(self,mtype:MessageType=MessageType.other,time:datetime=datetime.now(),user:User=User(),content:str="",url:str="",metionUsers:list=[]):
+    def __init__(self,mtype:MessageType=MessageType.other,time:datetime=datetime.now(),user:User=User(),content:str="",url:str="",metionUsers:list=[],payload:dict=dict()):
         self.mtype=mtype
         self.time=time
         self.user=user
         self.content=content
         self.url=url
         self.metionUsers=metionUsers
+        self.payload=payload
 
     @staticmethod
     def loadjson(json_str:str)->'Message':
@@ -57,4 +59,4 @@ class Message:
             usercolor=message["senderColorToken"]
         except:
             pass
-        return Message(mtype=mtype,time=message_time,user=User(ID=message["senderPublicId"],name=message["senderNickName"],color=usercolor),content=message["content"],url=url.group(0) if url else "",metionUsers=metionUsers)
+        return Message(mtype=mtype,time=message_time,user=User(ID=message["senderPublicId"],name=message["senderNickName"],color=usercolor),content=message["content"],url=url.group(0) if url else "",metionUsers=metionUsers,payload=message["payload"])

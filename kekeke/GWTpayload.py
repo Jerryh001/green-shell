@@ -31,8 +31,8 @@ class GWTPayload:
         for p in para:
             index=self._AddStr(p)
             self._para_table.append(str(index))
-    
-    def String(self):
+    @property
+    def string(self):
         return "|".join(self._list_head+
         [str(len(self._str_table))]+
         self._str_table+
@@ -42,7 +42,7 @@ class GWTPayload:
         self._para_table)+"|"
     
     def __str__(self):
-        return self.String()
+        return self.string
 
 if __name__=="__main__":
     p=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","C8317665135E6B272FC628F709ED7F2C","com.liquable.hiroba.gwt.client.vote.IGwtVoteService","createVotingForForbid"])

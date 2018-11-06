@@ -41,7 +41,7 @@ class Channel:
     async def updateUsers(self)->set:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        resp = await self.bot.post(payload=_payload.String())
+        resp = await self.bot.post(payload=_payload.string)
         new_users = set()
         if resp[:4] == r"//OK":
             j = json.loads(resp[4:])
@@ -91,7 +91,7 @@ class Channel:
                     if message.user in self.muda_users:
                         user = media.user
                         user.nickname = self.bot.user.nickname
-                        await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda","沒用","無駄"])+" "+media.url), showID=False)
+                        await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
             self.last_send[message.user.ID] = message.time
 
     async def receiveMessage(self, message: Message):
@@ -168,7 +168,7 @@ class Channel:
                 self.muda_users.remove(user)
             else:
                 self.muda_users.add(user)
-                await self.remove(message,args[0])
+                await self.remove(message, args[0])
                 await self.sendMessage(Message(mtype=MessageType.chat, user=self.bot.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
     @command.command(authonly=True)
@@ -180,8 +180,25 @@ class Channel:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", message.user.color if message.user.color != "" else None, message.user.ID, args[0], message.user.ID])
-        await self.bot.post(payload=_payload.String())
+        await self.bot.post(payload=_payload.string)
 
+    @command.command(authonly=True)
+    async def ban(self, message: Message, *args):
+        target: User = message.metionUsers[0]
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.bot.user.ID, self.bot.user.nickname, self.bot.user.ID])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", args[1] if args[1] else None, target.ID, target.nickname, target.ID])
+        _payload.AddPara("java.lang.String/2004016611", [""], True)
+        await self.bot.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/voteService")
+
+    async def vote(self, voteid:str):
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("java.lang.String/2004016611", [voteid], True)
+        _payload.AddPara("java.util.Set", ["java.util.HashSet/3273092938", "https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "java.lang.String/2004016611", "__i18n_forbid"], True)
+        _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8","cookie":"_ga=GA1.2.1273363991.1536654382; __cfduid=d2fd9578e93e5caf352c6744cbbb60eaa1536654643; _gid=GA1.2.25204363.1541384012; JSESSIONID=34D11AD105724DFD1FC3E69CA7935DAB","referer":"https://kekeke.cc/{0}".format(self.name)}
+        await self.bot.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/voteService")
 
 def clip(num: int, a: int, b: int):
     return min(max(num, a), b)

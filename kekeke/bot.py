@@ -33,7 +33,7 @@ class Bot:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [None, None, "com.liquable.gwt.transport.client.Destination/2061503238", "/topic/{0}".format("彩虹小馬實況")])
         while True:
-            resp = await self.post(payload=_payload.String())
+            resp = await self.post(payload=_payload.string)
             if resp[:4] == r"//OK":
                 break
             else:
@@ -45,7 +45,7 @@ class Bot:
 
     async def post(self, payload: str, url: str = _square_url, header: dict = _header) -> str:
         async with self._session.post(url=url, data=payload, headers=header) as r:
-            text= await r.text()
+            text = await r.text()
         return text
 
     async def subscribe(self, channel: str):
@@ -85,20 +85,25 @@ class Bot:
                 if m and m.user.ID:
                     asyncio.get_event_loop().create_task(channel.receiveMessage(m))
             elif publisher == "SERVER":
-                if m and m.mtype == MessageType.population:
-                    asyncio.get_event_loop().create_task(channel.updateUsers())
-    async def initMessages(self,channel:str):
-        _payload=GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/","53263EDF7F9313FDD5BD38B49D3A7A77","com.liquable.hiroba.gwt.client.square.IGwtSquareService","getLeftMessages"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/{0}".format(channel)])
-        messages:list=list()
-        resp=await self.post(payload=_payload.String())
-        if resp[:4]==r"//OK":
-            data=json.loads(resp[4:])[-3]
+                if m:
+                    if m.mtype == MessageType.population:
+                        asyncio.get_event_loop().create_task(channel.updateUsers())
+                    elif m.mtype == MessageType.vote:
+                        if m.payload["title"] == "__i18n_voteForbidTitle" and m.payload["votingState"] == "CREATE":
+                            asyncio.get_event_loop().create_task(channel.vote(m.payload["votingId"]))
+
+    async def initMessages(self, channel: str):
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLeftMessages"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(channel)])
+        messages: list = list()
+        resp = await self.post(payload=_payload.string)
+        if resp[:4] == r"//OK":
+            data = json.loads(resp[4:])[-3]
             for message_raw in data:
-                if message_raw[0]!='{':
+                if message_raw[0] != '{':
                     continue
-                m=Message.loadjson(message_raw)
-                if(not m.user.ID):
+                m = Message.loadjson(message_raw)
+                if(not m or not m.user.ID):
                     continue
                 self._log.debug(m)
                 messages.append(m)
