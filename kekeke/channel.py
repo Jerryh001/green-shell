@@ -12,6 +12,7 @@ from datetime import datetime
 from queue import Queue
 
 import aiohttp
+import redis
 
 from kekeke import command
 
@@ -33,10 +34,23 @@ class Channel:
         self.message_queue = Queue()
         self.users = set()
         self.commends = dict()
-        self.flag = set()
+        self.flags = set()
         self.medias = set()
         self.last_send = dict()
-        self.muda_users = set()
+        self.mudaUsers = set()
+        self.redisPerfix="kekeke::bot::channel::"+self.name+"::"
+        self.redis = redis.from_url(os.getenv("REDIS_URL"),decode_responses=True)
+        asyncio.get_event_loop().create_task(self.updateFlags(True))
+
+
+    async def updateFlags(self,pull=False):
+        if pull:
+            self.flags=self.redis.smembers(self.redisPerfix+"flags")
+        else:
+            self.redis.delete(self.redisPerfix+"flags")
+            self.redis.sadd(self.redisPerfix+"flags",self.flags)
+        await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flags))
+
 
     async def updateUsers(self)->set:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
@@ -52,7 +66,7 @@ class Channel:
                     name=keys[j[i+4]-1], ID=keys[j[i+3]-1], color=keys[j[i+2]-1] if j[i+2] > 0 else ""))
             joined = new_users-self.users
             self.users = new_users
-            if "⚡" in self.flag:
+            if "⚡" in self.flags:
                 for user in joined:
                     if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[-1].time:
                         if self.isNotWelcome(user):
@@ -88,7 +102,7 @@ class Channel:
                         pass
                 else:
                     self.medias.add(media)
-                    if message.user in self.muda_users:
+                    if message.user in self.mudaUsers:
                         user = media.user
                         user.nickname = self.bot.user.nickname
                         await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
@@ -130,11 +144,13 @@ class Channel:
         return self.message_queue.get()
 
     async def toggleFlag(self, flag: str):
-        if flag in self.flag:
-            self.flag.remove(flag)
+        if flag in self.flags:
+            self.flags.remove(flag)
+            self.redis.srem(self.redisPerfix+"flags",flag)
         else:
-            self.flag.add(flag)
-        await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flag))
+            self.flags.add(flag)
+            self.redis.sadd(self.redisPerfix+"flags",flag)
+        await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flags))
 
 ############################################commands#######################################
     @command.command(authonly=True)
@@ -165,10 +181,10 @@ class Channel:
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
             user: User = message.metionUsers[0]
-            if user in self.muda_users:
-                self.muda_users.remove(user)
+            if user in self.mudaUsers:
+                self.mudaUsers.remove(user)
             else:
-                self.muda_users.add(user)
+                self.mudaUsers.add(user)
                 await self.remove(message, args[0])
                 await self.sendMessage(Message(mtype=MessageType.chat, user=self.bot.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
