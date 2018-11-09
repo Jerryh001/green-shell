@@ -34,21 +34,11 @@ class Channel:
         self.message_queue = Queue()
         self.users = set()
         self.commends = dict()
-        self.flags = set()
         self.medias = set()
         self.last_send = dict()
         self.mudaUsers = set()
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
-        asyncio.get_event_loop().create_task(self.updateFlags(True))
-
-    async def updateFlags(self, pull=False):
-        if pull:
-            self.flags = self.redis.smembers(self.redisPerfix+"flags")
-        else:
-            self.redis.delete(self.redisPerfix+"flags")
-            self.redis.sadd(self.redisPerfix+"flags", self.flags)
-        await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flags))
 
     async def updateUsers(self)->set:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
@@ -64,7 +54,7 @@ class Channel:
                     name=keys[j[i+4]-1], ID=keys[j[i+3]-1], color=keys[j[i+2]-1] if j[i+2] > 0 else ""))
             joined = new_users-self.users
             self.users = new_users
-            if "⚡" in self.flags:
+            if self.redis.sismember(self.redisPerfix+"flags","⚡"):
                 for user in joined:
                     if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[-1].time:
                         if self.isNotWelcome(user):
@@ -142,13 +132,11 @@ class Channel:
         return self.message_queue.get()
 
     async def toggleFlag(self, flag: str):
-        if flag in self.flags:
-            self.flags.remove(flag)
+        if self.redis.sismember(self.redisPerfix+"flags",flag):
             self.redis.srem(self.redisPerfix+"flags", flag)
         else:
-            self.flags.add(flag)
             self.redis.sadd(self.redisPerfix+"flags", flag)
-        await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flags))
+        await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.redis.smembers(self.redisPerfix+"flags")))
 
 ############################################commands#######################################
 
