@@ -59,4 +59,4 @@ class Message:
             usercolor=message["senderColorToken"]
         except:
             pass
-        return Message(mtype=mtype,time=message_time,user=User(ID=message["senderPublicId"],name=message["senderNickName"],color=usercolor),content=message["content"],url=url.group(0) if url else "",metionUsers=metionUsers,payload=message["payload"])
+        return Message(mtype=mtype,time=message_time,user=User(ID=message["senderPublicId"],name=message["senderNickName"],color=usercolor),content=message["content"],url=url.group(0) if url else "",metionUsers=metionUsers,payload=message["payload"] if "payload" in message else dict())

@@ -14,7 +14,7 @@ from queue import Queue
 import aiohttp
 import redis
 
-from kekeke import command
+from kekeke import command, red
 
 from .GWTpayload import GWTPayload
 from .jsonfile import JsonFile
@@ -38,19 +38,17 @@ class Channel:
         self.medias = set()
         self.last_send = dict()
         self.mudaUsers = set()
-        self.redisPerfix="kekeke::bot::channel::"+self.name+"::"
-        self.redis = redis.from_url(os.getenv("REDIS_URL"),decode_responses=True)
+        self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
+        self.redis = redis.StrictRedis(connection_pool=red.pool())
         asyncio.get_event_loop().create_task(self.updateFlags(True))
 
-
-    async def updateFlags(self,pull=False):
+    async def updateFlags(self, pull=False):
         if pull:
-            self.flags=self.redis.smembers(self.redisPerfix+"flags")
+            self.flags = self.redis.smembers(self.redisPerfix+"flags")
         else:
             self.redis.delete(self.redisPerfix+"flags")
-            self.redis.sadd(self.redisPerfix+"flags",self.flags)
+            self.redis.sadd(self.redisPerfix+"flags", self.flags)
         await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flags))
-
 
     async def updateUsers(self)->set:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
@@ -118,9 +116,9 @@ class Channel:
         if message.content[0] == ".":
             args = message.content[1:].split()
             if(args[0] in command.commends):
-                self._log.info("命令"+args[0]+":開始執行")
+                
                 asyncio.get_event_loop().create_task(command.commends[args[0]](self, message, *(args[1:])))
-                self._log.info("命令"+args[0]+":執行完成")
+                
             else:
                 self._log.warning("命令"+args[0]+"不存在")
 
@@ -146,16 +144,32 @@ class Channel:
     async def toggleFlag(self, flag: str):
         if flag in self.flags:
             self.flags.remove(flag)
-            self.redis.srem(self.redisPerfix+"flags",flag)
+            self.redis.srem(self.redisPerfix+"flags", flag)
         else:
             self.flags.add(flag)
-            self.redis.sadd(self.redisPerfix+"flags",flag)
+            self.redis.sadd(self.redisPerfix+"flags", flag)
         await self.rename(Message(user=self.bot.user), self.bot.user.nickname+"".join(self.flags))
 
 ############################################commands#######################################
+
+    @command.command(authonly=True)
+    async def auth(self, message: Message, *args):
+        ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
+        success = False
+        if ismember:
+            if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
+                self.redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
+                success = True
+        else:
+            if len(args) == 1 or (len(args) == 2 and args[0] == "add"):
+                self.redis.sadd(self.redisPerfix+"auth", message.metionUsers[0].ID)
+                success = True
+        result = "操作"+("完成" if success else "失敗")+"，使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+'目前於"'+self.name+'"'+("是" if ismember != success else "不是")+"認證的使用者"
+        await self.sendMessage(Message(mtype=MessageType.chat, user=self.bot.user, content=result), showID=False)
+
     @command.command(authonly=True)
     async def clear(self, message: Message, *args):
-        if(len(args) >= 2 and args[0] == self.name):
+        if len(args) >= 2 and args[0] == self.name:
             times = clip(int(args[1], 0), 0, 100)
             for _ in range(times):
                 await self.sendMessage(Message(), showID=False)
@@ -170,7 +184,7 @@ class Channel:
                     medias_to_remove.add(media)
         elif len(args) >= 2:
             medias_to_remove.add(Media(user=message.metionUsers[0], url=args[1]))
-            if message.user!=message.metionUsers[0]:
+            if message.user != message.metionUsers[0]:
                 medias_to_remove.add(Media(user=message.user, url=args[1]))
         for media in medias_to_remove:
             user = media.user
@@ -209,13 +223,14 @@ class Channel:
         _payload.AddPara("java.lang.String/2004016611", [""], True)
         await self.bot.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/voteService")
 
-    async def vote(self, voteid:str):
+    async def vote(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("java.lang.String/2004016611", [voteid], True)
         _payload.AddPara("java.util.Set", ["java.util.HashSet/3273092938", "https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "java.lang.String/2004016611", "__i18n_forbid"], True)
-        _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8","cookie":"_ga=GA1.2.1273363991.1536654382; __cfduid=d2fd9578e93e5caf352c6744cbbb60eaa1536654643; _gid=GA1.2.25204363.1541384012; JSESSIONID=34D11AD105724DFD1FC3E69CA7935DAB","referer":"https://kekeke.cc/{0}".format(self.name)}
+        _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8", "cookie": "_ga=GA1.2.1273363991.1536654382; __cfduid=d2fd9578e93e5caf352c6744cbbb60eaa1536654643; _gid=GA1.2.25204363.1541384012; JSESSIONID=34D11AD105724DFD1FC3E69CA7935DAB", "referer": "https://kekeke.cc/{0}".format(self.name)}
         await self.bot.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/voteService")
+
 
 def clip(num: int, a: int, b: int):
     return min(max(num, a), b)

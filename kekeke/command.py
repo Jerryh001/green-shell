@@ -2,14 +2,19 @@ import inspect
 import types
 from functools import wraps
 
+import redis
+
+from kekeke import red
+
 commends = dict()
 
 
-def command(*,alias:str=None, authonly:bool=False):
+def command(*, alias: str = None, authonly: bool = False):
     def out(coro: types.coroutine):
         @wraps(coro)
-        async def warp(self,*args, **kargs):
-            sign=inspect.signature(coro)
+        async def warp(self, *args, **kargs):
+            sign = inspect.signature(coro)
+
             def getParameter(name: str):
                 try:
                     keys = sign.parameters.keys()
@@ -17,16 +22,17 @@ def command(*,alias:str=None, authonly:bool=False):
                 except:
                     return None
             message = getParameter("message")
-            if authonly and message.user.ID not in ["3b0f2a3a8a2a35a9c9727f188772ba095b239668", "5df087e5e341f555b0401fb69f89b5937ae7e313"]:
-                result = None
-                self._log.warning("命令"+coro.__name__+":不符合執行條件")
-            else:
-                
-                result = await coro(self,*args, **kargs)
-
+            if authonly:
+                _redis = redis.StrictRedis(connection_pool=red.pool())
+                if not _redis.sismember(self.redisPerfix+"auth",message.user.ID) and not _redis.sismember("kekeke::bot::global::auth",message.user.ID):
+                    self._log.warning("命令"+coro.__name__+":不符合執行條件")
+                    return None
+            self._log.info("命令"+coro.__name__+":開始執行")
+            result = await coro(self, *args, **kargs)
+            self._log.info("命令"+coro.__name__+":執行完成")
             return result
         w = warp
-        func_name=alias if alias else coro.__name__
+        func_name = alias if alias else coro.__name__
         commends[func_name] = w
         return w
     return out
