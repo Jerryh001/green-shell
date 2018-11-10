@@ -24,7 +24,7 @@ def command(*, alias: str = None, authonly: bool = False):
             message = getParameter("message")
             if authonly:
                 _redis = redis.StrictRedis(connection_pool=red.pool())
-                if not _redis.sismember(self.redisPerfix+"auth",message.user.ID) and not _redis.sismember("kekeke::bot::global::auth",message.user.ID):
+                if not _redis.sismember(self.redisPerfix+"auth",message.user.ID) and not _redis.sismember("kekeke::bot::global::auth",message.user.ID) and not message.user.ID==self.bot.user.ID:
                     self._log.warning("命令"+coro.__name__+":不符合執行條件")
                     return None
             self._log.info("命令"+coro.__name__+":開始執行")

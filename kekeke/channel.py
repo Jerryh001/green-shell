@@ -105,7 +105,7 @@ class Channel:
                 else:
                     self.medias.add(media)
                     issilent = self.redis.sismember(self.redisPerfix+"silentUsers", message.user.ID)
-                    if self.redis.sismember(self.redisPerfix+"flag", "🤐") and self.isForbiddenMessage(message) and not issilent:
+                    if self.redis.sismember(self.redisPerfix+"flags", "🤐") and self.isForbiddenMessage(message) and not issilent:
                         await self.muda(Message(mtype=MessageType.chat, user=self.bot.user, metionUsers=[message.user]), message.user.nickname)
                     if issilent:
                         user = media.user
