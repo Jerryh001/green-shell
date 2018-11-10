@@ -10,11 +10,12 @@ import re
 import time
 from datetime import datetime
 from queue import Queue
-import tzlocal
+
 import aiohttp
 import redis
+import tzlocal
 
-from kekeke import command, red
+from kekeke import command, flag, red
 
 from .GWTpayload import GWTPayload
 from .jsonfile import JsonFile
@@ -37,7 +38,6 @@ class Channel:
         self.flags = set()
         self.medias = set()
         self.last_send = dict()
-        self.mudaUsers = set()
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
         asyncio.get_event_loop().create_task(self.updateFlags(True))
@@ -64,16 +64,16 @@ class Channel:
                     name=keys[j[i+4]-1], ID=keys[j[i+3]-1], color=keys[j[i+2]-1] if j[i+2] > 0 else ""))
             joined = new_users-self.users
             self.users = new_users
-            if "⚡" in self.flags:
+            if flag.talk in self.flags:
                 for user in joined:
                     if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[-1].time:
                         if self.isNotWelcome(user):
                             await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<我就是GS，快來Ban我>"))
-                            self.last_send[user.ID]=tzlocal.get_localzone().localize(datetime.now())
+                            self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
                         elif re.match(r"(誰啊|unknown)", user.nickname):
                             await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<自動發送>"))
-                            self.last_send[user.ID]=tzlocal.get_localzone().localize(datetime.now())
-                        
+                            self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
+
             return joined
 
     def isNotWelcome(self, user: User)->bool:
@@ -94,7 +94,7 @@ class Channel:
 
     async def updateMedia(self, messages: list, reverse=False):
         for message in messages:
-            self.last_send[message.user.ID]=message.time
+            self.last_send[message.user.ID] = message.time
             if re.search(r"(^https://www\.youtube\.com/.+|^https?://\S+\.(jpe?g|png|gif)$)", message.url, re.IGNORECASE):
                 media = Media(user=message.user, url=message.url, remove=(message.mtype == MessageType.deleteimage))
                 if reverse != media.remove:
@@ -104,10 +104,22 @@ class Channel:
                         pass
                 else:
                     self.medias.add(media)
-                    if message.user in self.mudaUsers:
+                    issilent = self.redis.sismember(self.redisPerfix+"silentUsers", message.user.ID)
+                    if self.redis.sismember(self.redisPerfix+"flag", "🤐") and self.isForbiddenMessage(message) and not issilent:
+                        await self.muda(Message(mtype=MessageType.chat, user=self.bot.user, metionUsers=[message.user]), message.user.nickname)
+                    if issilent:
                         user = media.user
                         user.nickname = self.bot.user.nickname
                         await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
+
+    def isForbiddenMessage(self, message: Message)->bool:
+        if self.redis.sismember(self.redisPerfix+"auth", message.user.ID) or self.redis.sismember("kekeke::bot::global::auth", message.user.ID):
+            return False
+        else:
+            for keyword in self.redis.smembers(self.redisPerfix+"keyword"):
+                if re.search(keyword, message.content, re.IGNORECASE):
+                    return True
+            return False
 
     async def receiveMessage(self, message: Message):
         self.messages.append(message)
@@ -119,9 +131,9 @@ class Channel:
         if message.content[0] == ".":
             args = message.content[1:].split()
             if(args[0] in command.commends):
-                
+
                 asyncio.get_event_loop().create_task(command.commends[args[0]](self, message, *(args[1:])))
-                
+
             else:
                 self._log.warning("命令"+args[0]+"不存在")
 
@@ -198,16 +210,21 @@ class Channel:
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
             user: User = message.metionUsers[0]
-            if user in self.mudaUsers:
-                self.mudaUsers.remove(user)
+
+            if self.redis.sismember(self.redisPerfix+"silentUsers", user.ID):
+                self.redis.srem(self.redisPerfix+"silentUsers", user.ID)
             else:
-                self.mudaUsers.add(user)
+                self.redis.sadd(self.redisPerfix+"silentUsers", user.ID)
                 await self.remove(message, args[0])
                 await self.sendMessage(Message(mtype=MessageType.chat, user=self.bot.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
     @command.command(authonly=True)
     async def autotalk(self, message: Message, *args):
-        await self.toggleFlag("⚡")
+        await self.toggleFlag(flag.talk)
+
+    @command.command(authonly=True)
+    async def automuda(self, message: Message, *args):
+        await self.toggleFlag(flag.muda)
 
     @command.command()
     async def rename(self, message: Message, *args):
