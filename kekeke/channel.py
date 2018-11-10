@@ -10,7 +10,7 @@ import re
 import time
 from datetime import datetime
 from queue import Queue
-
+import tzlocal
 import aiohttp
 import redis
 
@@ -69,8 +69,11 @@ class Channel:
                     if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[-1].time:
                         if self.isNotWelcome(user):
                             await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<我就是GS，快來Ban我>"))
+                            self.last_send[user.ID]=tzlocal.get_localzone().localize(datetime.now())
                         elif re.match(r"(誰啊|unknown)", user.nickname):
                             await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<自動發送>"))
+                            self.last_send[user.ID]=tzlocal.get_localzone().localize(datetime.now())
+                        
             return joined
 
     def isNotWelcome(self, user: User)->bool:
@@ -91,6 +94,7 @@ class Channel:
 
     async def updateMedia(self, messages: list, reverse=False):
         for message in messages:
+            self.last_send[message.user.ID]=message.time
             if re.search(r"(^https://www\.youtube\.com/.+|^https?://\S+\.(jpe?g|png|gif)$)", message.url, re.IGNORECASE):
                 media = Media(user=message.user, url=message.url, remove=(message.mtype == MessageType.deleteimage))
                 if reverse != media.remove:
@@ -104,7 +108,6 @@ class Channel:
                         user = media.user
                         user.nickname = self.bot.user.nickname
                         await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
-            self.last_send[message.user.ID] = message.time
 
     async def receiveMessage(self, message: Message):
         self.messages.append(message)

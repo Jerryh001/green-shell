@@ -17,7 +17,7 @@ class MessageType(Enum):
     other=""
     population="NO_OF_CROWD_MESSAGE"
 class Message:
-    def __init__(self,mtype:MessageType=MessageType.other,time:datetime=datetime.now(),user:User=User(),content:str="",url:str="",metionUsers:list=[],payload:dict=dict()):
+    def __init__(self,mtype:MessageType=MessageType.other,time:datetime=tzlocal.get_localzone().localize(datetime.now()),user:User=User(),content:str="",url:str="",metionUsers:list=[],payload:dict=dict()):
         self.mtype=mtype
         self.time=time
         self.user=user
