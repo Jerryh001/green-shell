@@ -36,7 +36,7 @@ class Channel:
         self.users = set()
         self.commends = dict()
         self.flags = set()
-        self.medias = set()
+        self.medias = dict()
         self.last_send = dict()
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
@@ -89,28 +89,34 @@ class Channel:
 
     async def setMessage(self, message_list: list):
         self.messages = message_list
-        self.medias = set()
+        self.medias = dict()
         await self.updateMedia(self.messages)
 
-    async def updateMedia(self, messages: list, reverse=False):
+    async def updateMedia(self, messages: list, pop=False):
         for message in messages:
             self.last_send[message.user.ID] = message.time
             if re.search(r"(^https://www\.youtube\.com/.+|^https?://\S+\.(jpe?g|png|gif)$)", message.url, re.IGNORECASE):
                 media = Media(user=message.user, url=message.url, remove=(message.mtype == MessageType.deleteimage))
-                if reverse != media.remove:
+                if media.remove and not pop:
                     try:
-                        self.medias.remove(media)
+                        self.medias.pop(media)
                     except KeyError:
                         pass
+                elif pop:
+                    self.medias[media]=self.medias[media]-1
+                    if self.medias[media]==0:
+                        self.medias.pop(media)
                 else:
-                    self.medias.add(media)
-                    issilent = self.redis.sismember(self.redisPerfix+"silentUsers", message.user.ID)
-                    if self.redis.sismember(self.redisPerfix+"flags", "🤐") and self.isForbiddenMessage(message) and not issilent:
-                        await self.muda(Message(mtype=MessageType.chat, user=self.bot.user, metionUsers=[message.user]), message.user.nickname)
-                    if issilent:
-                        user = media.user
-                        user.nickname = self.bot.user.nickname
-                        await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
+                    self.medias[media]= self.medias[media]+1 if media in self.medias else 1
+        if not pop and self.redis.sismember(self.redisPerfix+"flags", "🤐"):
+            for media in self.medias:
+                issilent = self.redis.sismember(self.redisPerfix+"silentUsers", media.user.ID)
+                if not issilent and self.isForbiddenMessage(message):
+                    await self.muda(Message(mtype=MessageType.chat, user=self.bot.user, metionUsers=[message.user]), message.user.nickname)
+                if issilent:
+                    user = media.user
+                    user.nickname = self.bot.user.nickname
+                    await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
 
     def isForbiddenMessage(self, message: Message)->bool:
         if self.redis.sismember(self.redisPerfix+"auth", message.user.ID) or self.redis.sismember("kekeke::bot::global::auth", message.user.ID):
@@ -167,6 +173,29 @@ class Channel:
 
 ############################################commands#######################################
 
+    @command.command()
+    async def remove(self, message: Message, *args):
+        medias_to_remove = set()
+        if len(args) == 1:
+            for media in self.medias:
+                if media.user.ID == message.metionUsers[0].ID:
+                    medias_to_remove.add(media)
+        elif len(args) >= 2:
+            medias_to_remove.add(Media(user=message.metionUsers[0], url=args[1]))
+            if message.user != message.metionUsers[0]:
+                medias_to_remove.add(Media(user=message.user, url=args[1]))
+        for media in medias_to_remove:
+            user = media.user
+            user.nickname = self.bot.user.nickname
+            await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
+
+    @command.command()
+    async def rename(self, message: Message, *args):
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", message.user.color if message.user.color != "" else None, message.user.ID, args[0], message.user.ID])
+        await self.bot.post(payload=_payload.string)
+
     @command.command(authonly=True)
     async def auth(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
@@ -190,22 +219,6 @@ class Channel:
                 await self.sendMessage(Message(), showID=False)
             self._log.info("發送"+str(times)+"則空白訊息")
 
-    @command.command()
-    async def remove(self, message: Message, *args):
-        medias_to_remove = set()
-        if len(args) == 1:
-            for media in self.medias:
-                if media.user.ID == message.metionUsers[0].ID:
-                    medias_to_remove.add(media)
-        elif len(args) >= 2:
-            medias_to_remove.add(Media(user=message.metionUsers[0], url=args[1]))
-            if message.user != message.metionUsers[0]:
-                medias_to_remove.add(Media(user=message.user, url=args[1]))
-        for media in medias_to_remove:
-            user = media.user
-            user.nickname = self.bot.user.nickname
-            await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
-
     @command.command(authonly=True)
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
@@ -225,13 +238,6 @@ class Channel:
     @command.command(authonly=True)
     async def automuda(self, message: Message, *args):
         await self.toggleFlag(flag.muda)
-
-    @command.command()
-    async def rename(self, message: Message, *args):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", message.user.color if message.user.color != "" else None, message.user.ID, args[0], message.user.ID])
-        await self.bot.post(payload=_payload.string)
 
     @command.command(authonly=True)
     async def ban(self, message: Message, *args):
