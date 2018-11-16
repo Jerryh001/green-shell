@@ -175,13 +175,14 @@ def SIG_EXIT():
         task.cancel()
     raise KeyboardInterrupt
 if __name__=="__main__":
-    logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(level=logging.INFO)
     #bot.remove_command('help')
     try:
         signal.signal(signal.SIGTERM, SIG_EXIT)
         asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,SIG_EXIT)
         bot.loop.add_signal_handler(signal.SIGTERM,SIG_EXIT)
+        logging.info("add handler success")
     except NotImplementedError:
-        pass #run in windows
+        logging.warning("add handler failed")#run in windows
 
     bot.run(os.getenv("DISCORD_TOKEN"))
