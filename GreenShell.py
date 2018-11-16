@@ -100,7 +100,7 @@ async def _BeforeOversee(ctx:commands.Context):
     global kbot
     if not kbot:
         kbot=KBot()
-        await kbot.connect()
+        #await kbot.connect()
     channel:discord.TextChannel=ctx.kwargs["channel"]
     url=r"https://kekeke.cc/"+channel.name
     if channel.topic != url:
