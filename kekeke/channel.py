@@ -29,6 +29,7 @@ class Channel:
     _square_url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
     _vote_url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/voteService"
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
+    commendPrefix = os.getenv("DISCORD_PREFIX")
 
     def __init__(self, name: str):
         self.name = name
@@ -39,7 +40,6 @@ class Channel:
         self.messages = list()
         self.message_queue = Queue()
         self.users = set()
-        self.commends = dict()
         self.flags = set()
         self.medias = dict()
         self.last_send = dict()
@@ -55,7 +55,6 @@ class Channel:
         await self.updateUsers()
         await self.initMessages(self.name)
         asyncio.get_event_loop().create_task(self.listen())
-
 
     async def subscribe(self):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
@@ -123,6 +122,8 @@ class Channel:
     async def post(self, payload: str, url: str = _square_url, header: dict = _header) -> str:
         async with self._session.post(url=url, data=payload, headers=header) as r:
             text = await r.text()
+            if r.status != 200:
+                self._log.warning("<post error> payload="+payload+"url="+url+"header="+str(header))
         return text
 
     async def updateFlags(self, pull=False):
@@ -186,9 +187,12 @@ class Channel:
                     except KeyError:
                         pass
                 elif pop:
-                    self.medias[media] = self.medias[media]-1
-                    if self.medias[media] == 0:
-                        self.medias.pop(media)
+                    try:
+                        self.medias[media] = self.medias[media]-1
+                        if self.medias[media] == 0:
+                            self.medias.pop(media)
+                    except KeyError:
+                        pass
                 else:
                     self.medias[media] = self.medias[media]+1 if media in self.medias else 1
         if not pop and self.redis.sismember(self.redisPerfix+"flags", "🤐"):
@@ -217,10 +221,9 @@ class Channel:
         if len(self.messages) > 100:
             await self.updateMedia(self.messages[:-100], True)
             self.messages = self.messages[-100:]
-        if message.content[0] == ".":
-            args = message.content[1:].split()
+        if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
+            args = message.content[len(self.commendPrefix):].split()
             if(args[0] in command.commends):
-
                 asyncio.get_event_loop().create_task(command.commends[args[0]](self, message, *(args[1:])))
 
             else:
@@ -334,22 +337,23 @@ class Channel:
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, target.ID, target.nickname, target.ID])
-        _payload.AddPara("java.lang.String/2004016611", [""], True)
+        _payload.AddPara("java.lang.String/2004016611", [""], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
     async def vote(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        _payload.AddPara("java.lang.String/2004016611", [voteid], True)
-        _payload.AddPara("java.util.Set", ["java.util.HashSet/3273092938", "https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "java.lang.String/2004016611", "__i18n_forbid"], True)
+        _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
+        _payload.AddPara("java.util.Set", ["java.util.HashSet/3273092938", "https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "java.lang.String/2004016611", "__i18n_forbid"], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
-    async def banCommit(self,voteid:str):
+    async def banCommit(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyForbidByVoting"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        _payload.AddPara("java.lang.String/2004016611", [voteid], True)
-        _payload.AddPara("com.liquable.hiroba.gwt.client.vote.ForbidOption/647536008", ["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/"])
+        _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
+        _payload.AddPara("com.liquable.hiroba.gwt.client.vote.ForbidOption/647536008", [0], rawpara=True)
         await self.post(payload=_payload.string, url=self._vote_url)
+
 
 def clip(num: int, a: int, b: int):
     return min(max(num, a), b)

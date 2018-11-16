@@ -23,13 +23,15 @@ class GWTPayload:
 
 
 
-    def AddPara(self,ptype:str,para:list,regonly=False):
+    def AddPara(self,ptype:str,para:list,*,regonly=False,rawpara=False):
         index=self._AddStr(ptype)
         self._para_type_table.append(str(index))
         if not regonly:
             self._para_table.append(str(index))
         for p in para:
-            index=self._AddStr(p)
+            index=p
+            if not rawpara:
+                index=self._AddStr(p)
             self._para_table.append(str(index))
     @property
     def string(self):
@@ -49,5 +51,5 @@ if __name__=="__main__":
     p.AddPara("com.liquable.gwt.transport.client.Destination/2061503238",["/topic/測試123"])
     p.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082",["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017","7b301154","3b0f2a3a8a2a35a9c9727f188772ba095b239668","Jerryh001","3b0f2a3a8a2a35a9c9727f188772ba095b239668"])
     p.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082",["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017",None,"59049bd18178820ed6db05aab2617ede7a1cf25e","Discord#Bot","59049bd18178820ed6db05aab2617ede7a1cf25e"])
-    p.AddPara("java.lang.String/2004016611",[""],True)
+    p.AddPara("java.lang.String/2004016611",[""],regonly=True)
     print(p)
