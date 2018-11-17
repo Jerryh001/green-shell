@@ -48,24 +48,31 @@ class Channel:
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
-        self._session = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
-        self.ws = await self._session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket", heartbeat=120).__aenter__()
+        self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
+        self.ws: aiohttp.ClientWebSocketResponse = await self._session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket", heartbeat=120).__aenter__()
         await self.subscribe()
         await self.updateFlags(True)
         await self.updateUsers()
         await self.initMessages(self.name)
         asyncio.get_event_loop().create_task(self.listen())
+        asyncio.get_event_loop().create_task(self.keepAlive())
+
+    async def keepAlive(self):
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "B2BDD9C0DA93926EAB57F7F9D7B941D3", "com.liquable.hiroba.gwt.client.account.IGwtAccountService", "tryExtendsKerma"])
+        while not self._session.closed:
+            await self.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/accountService")
+            await asyncio.sleep(300)
 
     async def subscribe(self):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [None, None, "com.liquable.gwt.transport.client.Destination/2061503238", "/topic/{0}".format(self.name)])
         while True:
-            resp = await self.post(payload=_payload.string)
-            if resp[:4] == r"//OK":
+            data = await self.post(payload=_payload.string)
+            if data:
                 break
             else:
                 await asyncio.sleep(5)
-        data = json.loads(resp[4:])[-3]
+        data = data[-3]
         self.user.ID = data[-1]
         await self.ws.send_str('CONNECT\nlogin:'+json.dumps({"accessToken": data[2], "nickname": self.user.nickname}))
         await self.ws.send_str('SUBSCRIBE\ndestination:/topic/{0}'.format(self.name))
@@ -75,9 +82,9 @@ class Channel:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLeftMessages"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         messages: list = list()
-        resp = await self.post(payload=_payload.string)
-        if resp[:4] == r"//OK":
-            data = json.loads(resp[4:])[-3]
+        data = await self.post(payload=_payload.string)
+        if data:
+            data = data[-3]
             for message_raw in data:
                 if message_raw[0] != '{':
                     continue
@@ -88,11 +95,9 @@ class Channel:
                 messages.append(m)
             if messages:
                 await self.setMessage(messages)
-                self._log.info("Get history messages from channel "+self.name+" successed")
-            else:
-                self._log.info("Get history messages from channel "+self.name+" successed, but it's empty")
+            self._log.info("更新歷史訊息成功")
         else:
-            self._log.warning("Parse history messages from channel "+self.name+" failed, response:"+resp[:4])
+            self._log.warning("更新歷史訊息失敗")
 
     async def listen(self):
         while not self.ws.closed:
@@ -105,26 +110,30 @@ class Channel:
                 continue
             publisher = msg_list[2][len("publisher:"):]
             m = Message.loadjson(msg_list[3])
+            if not m:
+                continue
             if publisher == "CLIENT_TRANSPORT":
-                if m and m.user.ID:
+                if m.user.ID:
                     asyncio.get_event_loop().create_task(self.receiveMessage(m))
             elif publisher == "SERVER":
-                if m:
-                    if m.mtype == MessageType.population:
-                        asyncio.get_event_loop().create_task(self.updateUsers())
-                    elif m.mtype == MessageType.vote:
-                        if m.payload["title"] == "__i18n_voteForbidTitle":
-                            if m.payload["votingState"] == "CREATE":
-                                asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"]))
-                            elif m.payload["votingState"] == "COMPLETE":
-                                asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
+                if m.mtype == MessageType.population:
+                    asyncio.get_event_loop().create_task(self.updateUsers())
+                elif m.mtype == MessageType.vote:
+                    if m.payload["title"] == "__i18n_voteForbidTitle":
+                        if m.payload["votingState"] == "CREATE":
+                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"]))
+                        elif m.payload["votingState"] == "COMPLETE":
+                            asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
 
-    async def post(self, payload: str, url: str = _square_url, header: dict = _header) -> str:
-        async with self._session.post(url=url, data=payload, headers=header) as r:
-            text = await r.text()
-            if r.status != 200:
-                self._log.warning("<post error> payload="+payload+"url="+url+"header="+str(header))
-        return text
+    async def post(self, payload: str, url: str = _square_url, header: dict = _header) -> dict:
+        for i in range(3):
+            async with self._session.post(url=url, data=payload, headers=header) as r:
+                if r.status != 200:
+                    self._log.warning("<第"+str(i)+"次post失敗> payload="+payload+" url="+url+" header="+str(header))
+                else:
+                    text = await r.text()
+                    return json.loads(text[4:])
+        return None
 
     async def updateFlags(self, pull=False):
         if pull:
@@ -137,10 +146,9 @@ class Channel:
     async def updateUsers(self)->set:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        resp = await self.post(payload=_payload.string)
+        j = await self.post(payload=_payload.string)
         new_users = set()
-        if resp[:4] == r"//OK":
-            j = json.loads(resp[4:])
+        if j:
             j.reverse()
             keys = j[2]
             for i in range(5, len(j), 6):
@@ -150,7 +158,7 @@ class Channel:
             self.users = new_users
             if flag.talk in self.flags:
                 for user in joined:
-                    if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[-1].time:
+                    if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[0].time:
                         if self.isNotWelcome(user):
                             await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<我就是GS，快來Ban我>"))
                             self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
@@ -195,7 +203,7 @@ class Channel:
                         pass
                 else:
                     self.medias[media] = self.medias[media]+1 if media in self.medias else 1
-        if not pop and self.redis.sismember(self.redisPerfix+"flags", "🤐"):
+        if not pop and self.redis.sismember(self.redisPerfix+"flags", flag.muda):
             for media in self.medias:
                 issilent = self.redis.sismember(self.redisPerfix+"silentUsers", media.user.ID)
                 if not issilent and self.isForbiddenMessage(message):
@@ -282,6 +290,27 @@ class Channel:
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", message.user.color if message.user.color != "" else None, message.user.ID, args[0], message.user.ID])
         await self.post(payload=_payload.string)
 
+    @command.command()
+    async def member(self, message: Message, *args):
+        ismember = self.redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID)
+        success = False
+        if ismember:
+            if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
+                self.redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
+                success = True
+        else:
+            if len(args) == 1 or (len(args) == 2 and args[0] == "add"):
+                if self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID):
+                    if self.redis.sismember(self.redisPerfix+"auth", message.user.ID):
+                        self.redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
+                        self.redis.sadd(self.redisPerfix+"members", message.metionUsers[0].ID)
+                        success = True
+                else:
+                    self.redis.sadd(self.redisPerfix+"members", message.metionUsers[0].ID)
+                    success = True
+        result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"一般的使用者"
+        await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=result), showID=False)
+
     @command.command(authonly=True)
     async def auth(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
@@ -293,8 +322,10 @@ class Channel:
         else:
             if len(args) == 1 or (len(args) == 2 and args[0] == "add"):
                 self.redis.sadd(self.redisPerfix+"auth", message.metionUsers[0].ID)
+                if self.redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID):
+                    self.redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
                 success = True
-        result = "操作"+("完成" if success else "失敗")+"，使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+'目前於"'+self.name+'"'+("是" if ismember != success else "不是")+"認證的使用者"
+        result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"認證的使用者"
         await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=result), showID=False)
 
     @command.command(authonly=True)

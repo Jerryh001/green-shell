@@ -71,7 +71,9 @@ async def on_ready():
        
 @bot.command(name="kekeke")
 async def _kekeke(ctx:commands.Context):
+    bot.loop.create_task(detect(ctx))
     
+async def detect(ctx:commands.Context):
     kd=Detector(bot.get_channel(483268806072991794))
     try:
         await kd.PeriodRun(30)
@@ -79,7 +81,6 @@ async def _kekeke(ctx:commands.Context):
     except:
         logging.error("moniter kekeke HP stopped unexcept")
         await ctx.send("moniter kekeke HP stopped unexcept")
-
 
 @bot.command(aliases=["o"])
 
@@ -166,7 +167,7 @@ async def SIGTERM_exit():
     await bot.get_channel(483242913807990806).send(bot.user.name+" has stopped by SIGTERM")
     logging.warning(bot.user.name+" has stopped by SIGTERM")
 
-def SIG_EXIT():
+def SIG_EXIT(signum, frame):
     time.sleep(5)
     logging.warning(bot.user.name+" has stopped by SIGTERM-")
     print("bye")
