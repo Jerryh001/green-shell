@@ -64,8 +64,9 @@ class Channel:
             await asyncio.sleep(300)
 
     async def subscribe(self):
+        GUID=self.redis.get(self.redisPerfix+"botGUID")
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [None, None, "com.liquable.gwt.transport.client.Destination/2061503238", "/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [GUID if GUID else None, None, "com.liquable.gwt.transport.client.Destination/2061503238", "/topic/{0}".format(self.name)])
         while True:
             data = await self.post(payload=_payload.string)
             if data:
@@ -73,6 +74,7 @@ class Channel:
             else:
                 await asyncio.sleep(5)
         data = data[-3]
+        self.redis.set(self.redisPerfix+"botGUID",data[1])
         self.user.ID = data[-1]
         await self.ws.send_str('CONNECT\nlogin:'+json.dumps({"accessToken": data[2], "nickname": self.user.nickname}))
         await self.ws.send_str('SUBSCRIBE\ndestination:/topic/{0}'.format(self.name))
@@ -311,6 +313,16 @@ class Channel:
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"一般的使用者"
         await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=result), showID=False)
 
+    @command.command()
+    async def ban(self, message: Message, *args):
+        target: User = message.metionUsers[0]
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, target.ID, target.nickname, target.ID])
+        _payload.AddPara("java.lang.String/2004016611", [""], regonly=True)
+        await self.post(payload=_payload.string, url=self._vote_url)
+    
     @command.command(authonly=True)
     async def auth(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
@@ -327,6 +339,10 @@ class Channel:
                 success = True
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"認證的使用者"
         await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=result), showID=False)
+
+    @command.command()
+    async def autotalk(self, message: Message, *args):
+        await self.toggleFlag(flag.talk)
 
     @command.command(authonly=True)
     async def clear(self, message: Message, *args):
@@ -349,27 +365,8 @@ class Channel:
                 await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
     @command.command(authonly=True)
-    async def autotalk(self, message: Message, *args):
-        await self.toggleFlag(flag.talk)
-
-    @command.command(authonly=True)
     async def automuda(self, message: Message, *args):
         await self.toggleFlag(flag.muda)
-
-    @command.command(authonly=True)
-    async def test(self, message: Message, *args):
-        _payload = "7|0|14|https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/|C8317665135E6B272FC628F709ED7F2C|com.liquable.hiroba.gwt.client.vote.IGwtVoteService|createVotingForForbid|com.liquable.gwt.transport.client.Destination/2061503238|/topic/測試123|com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082|com.liquable.hiroba.gwt.client.square.ColorSource/2591568017|5c6917815a0fff1c474740f3afc70db0d4ef3a1a|DiscordBot|3b0f2a3a8a2a35a9c9727f188772ba095b239668|Jerryh001|java.lang.String/2004016611||1|2|3|4|4|5|7|7|13|5|6|7|8|0|9|10|9|7|8|0|11|12|11|14|"
-        await self.post(payload=_payload, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/voteService")
-
-    @command.command(authonly=True)
-    async def ban(self, message: Message, *args):
-        target: User = message.metionUsers[0]
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, target.ID, target.nickname, target.ID])
-        _payload.AddPara("java.lang.String/2004016611", [""], regonly=True)
-        await self.post(payload=_payload.string, url=self._vote_url)
 
     async def vote(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
