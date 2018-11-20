@@ -275,7 +275,8 @@ class Channel:
         texts = []
         for com in command.commands:
             texts.append(command.commands[com].name+"\n"+command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
-        d.text((20, 20), "\n".join(texts).encode('utf-8'), fill=(0, 0, 0), font=ImageFont.load_default())
+        font=ImageFont.truetype(font='msjh.ttc',size=20)
+        d.text((20, 20), "\n".join(texts), fill=(0, 0, 0), font=font)
         img.save("test.png")
 
     @command.command(help="移除特定使用者所發出的檔案\n.remove <使用者> <檔案>\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
