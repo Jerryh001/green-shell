@@ -270,14 +270,20 @@ class Channel:
 
     @command.command(help="顯示這個訊息\n.help")
     async def help(self, message: Message, *args):
-        img = Image.new('RGB', (400, 1000), (255, 255, 255))
+        img = Image.new('RGB', (700, 1800), (255, 255, 255))
         d = ImageDraw.Draw(img)
         texts = []
         for com in command.commands:
             texts.append(command.commands[com].name+"\n"+command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
-        font=ImageFont.truetype(font='msjh.ttc',size=20)
+        font=ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"),size=20)
         d.text((20, 20), "\n".join(texts), fill=(0, 0, 0), font=font)
-        img.save("test.png")
+        img.save(os.path.join(os.getcwd(), "data/help.png"))
+        with open(os.path.join(os.getcwd(), "data/help.png"),'rb') as f:
+            files = {'file': f}
+            async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data=files) as r:
+                text=json.loads(await r.text())
+                await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=text["url"]), showID=False)
+        
 
     @command.command(help="移除特定使用者所發出的檔案\n.remove <使用者> <檔案>\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
@@ -302,7 +308,7 @@ class Channel:
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", message.user.color if message.user.color != "" else None, message.user.ID, args[0], message.user.ID])
         await self.post(payload=_payload.string)
 
-    @command.command(help="將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令，一般成員不可修改認證成員身分\n.member (add/remove) <使用者>\n若不指定add/remove則自動判斷")
+    @command.command(help="將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令\n一般成員不可修改認證成員身分\n.member (add/remove) <使用者>\n若不指定add/remove則自動判斷")
     async def member(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID)
         success = False
