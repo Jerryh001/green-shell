@@ -14,6 +14,7 @@ from queue import Queue
 import aiohttp
 import redis
 import tzlocal
+from PIL import Image, ImageDraw, ImageFont
 
 from kekeke import command, flag, red
 
@@ -64,7 +65,7 @@ class Channel:
             await asyncio.sleep(300)
 
     async def subscribe(self):
-        GUID=self.redis.get(self.redisPerfix+"botGUID")
+        GUID = self.redis.get(self.redisPerfix+"botGUID")
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [GUID if GUID else None, None, "com.liquable.gwt.transport.client.Destination/2061503238", "/topic/{0}".format(self.name)])
         while True:
@@ -74,7 +75,7 @@ class Channel:
             else:
                 await asyncio.sleep(5)
         data = data[-3]
-        self.redis.set(self.redisPerfix+"botGUID",data[1])
+        self.redis.set(self.redisPerfix+"botGUID", data[1])
         self.user.ID = data[-1]
         await self.ws.send_str('CONNECT\nlogin:'+json.dumps({"accessToken": data[2], "nickname": self.user.nickname}))
         await self.ws.send_str('SUBSCRIBE\ndestination:/topic/{0}'.format(self.name))
@@ -233,8 +234,8 @@ class Channel:
             self.messages = self.messages[-100:]
         if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
             args = message.content[len(self.commendPrefix):].split()
-            if(args[0] in command.commends):
-                asyncio.get_event_loop().create_task(command.commends[args[0]](self, message, *(args[1:])))
+            if(args[0] in command.commands):
+                asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
 
             else:
                 self._log.warning("命令"+args[0]+"不存在")
@@ -259,17 +260,32 @@ class Channel:
         return self.message_queue.get()
 
     async def toggleFlag(self, flag: str):
-        if flag in self.flags:
-            self.flags.remove(flag)
+        if self.redis.sismember(self.redisPerfix+"flags",flag):
             self.redis.srem(self.redisPerfix+"flags", flag)
         else:
-            self.flags.add(flag)
             self.redis.sadd(self.redisPerfix+"flags", flag)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
 ############################################commands#######################################
 
-    @command.command()
+    @command.command(help="顯示這個訊息\n.help")
+    async def help(self, message: Message, *args):
+        img = Image.new('RGB', (700, 1800), (255, 255, 255))
+        d = ImageDraw.Draw(img)
+        texts = []
+        for com in command.commands:
+            texts.append(command.commands[com].name+"\n"+command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
+        font=ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"),size=20)
+        d.text((20, 20), "\n".join(texts), fill=(0, 0, 0), font=font)
+        img.save(os.path.join(os.getcwd(), "data/help.png"))
+        with open(os.path.join(os.getcwd(), "data/help.png"),'rb') as f:
+            files = {'file': f}
+            async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data=files) as r:
+                text=json.loads(await r.text())
+                await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=text["url"]), showID=False)
+        
+
+    @command.command(help="移除特定使用者所發出的檔案\n.remove <使用者> <檔案>\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
         medias_to_remove = set()
         if len(args) == 1:
@@ -285,14 +301,14 @@ class Channel:
             user.nickname = self.user.nickname
             await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
 
-    @command.command()
+    @command.command(help="修改自己的使用者名稱，只在使用者列表有效\n.rename <新名稱>")
     async def rename(self, message: Message, *args):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", message.user.color if message.user.color != "" else None, message.user.ID, args[0], message.user.ID])
         await self.post(payload=_payload.string)
 
-    @command.command()
+    @command.command(help="將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令\n一般成員不可修改認證成員身分\n.member (add/remove) <使用者>\n若不指定add/remove則自動判斷")
     async def member(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID)
         success = False
@@ -313,7 +329,7 @@ class Channel:
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"一般的使用者"
         await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=result), showID=False)
 
-    @command.command()
+    @command.command(help="發起封鎖特定使用者投票\n.ban <使用者>")
     async def ban(self, message: Message, *args):
         target: User = message.metionUsers[0]
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
@@ -322,8 +338,8 @@ class Channel:
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, target.ID, target.nickname, target.ID])
         _payload.AddPara("java.lang.String/2004016611", [""], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
-    
-    @command.command(authonly=True)
+
+    @command.command(authonly=True, help="將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n.member (add/remove) <使用者>\n若不指定add/remove則自動判斷")
     async def auth(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
         success = False
@@ -340,11 +356,11 @@ class Channel:
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"認證的使用者"
         await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=result), showID=False)
 
-    @command.command()
+    @command.command(help="啟用/停用自動發送訊息功能\n.autotalk")
     async def autotalk(self, message: Message, *args):
         await self.toggleFlag(flag.talk)
 
-    @command.command(authonly=True)
+    @command.command(authonly=True, help="【危險】送出X條空白訊息\n.clear <目前頻道名稱> X\nX最多為100")
     async def clear(self, message: Message, *args):
         if len(args) >= 2 and args[0] == self.name:
             times = clip(int(args[1], 0), 0, 100)
@@ -352,7 +368,7 @@ class Channel:
                 await self.sendMessage(Message(), showID=False)
             self._log.info("發送"+str(times)+"則空白訊息")
 
-    @command.command(authonly=True)
+    @command.command(authonly=True, help="使特定使用者無法發送檔案並清除全部所發送檔案\n.muda <使用者>")
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
             user: User = message.metionUsers[0]
@@ -364,7 +380,7 @@ class Channel:
                 await self.remove(message, args[0])
                 await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
-    @command.command(authonly=True)
+    @command.command(authonly=True, help='啟用/停用當使用者發送特定關鍵字時，自動進行"muda"指令\n.automuda')
     async def automuda(self, message: Message, *args):
         await self.toggleFlag(flag.muda)
 
