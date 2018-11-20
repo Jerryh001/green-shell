@@ -5,7 +5,7 @@ import os
 import re
 import signal
 from concurrent import futures
-
+import time
 import boto3
 import discord
 import redis
@@ -71,7 +71,9 @@ async def on_ready():
        
 @bot.command(name="kekeke")
 async def _kekeke(ctx:commands.Context):
+    bot.loop.create_task(detect(ctx))
     
+async def detect(ctx:commands.Context):
     kd=Detector(bot.get_channel(483268806072991794))
     try:
         await kd.PeriodRun(30)
@@ -79,7 +81,6 @@ async def _kekeke(ctx:commands.Context):
     except:
         logging.error("moniter kekeke HP stopped unexcept")
         await ctx.send("moniter kekeke HP stopped unexcept")
-
 
 @bot.command(aliases=["o"])
 
@@ -100,7 +101,6 @@ async def _BeforeOversee(ctx:commands.Context):
     global kbot
     if not kbot:
         kbot=KBot()
-        await kbot.connect()
     channel:discord.TextChannel=ctx.kwargs["channel"]
     url=r"https://kekeke.cc/"+channel.name
     if channel.topic != url:
@@ -163,44 +163,27 @@ async def loglevel(ctx, level:str,logger_name:str="" ):
         logging.warning("change {0}'s level to {1} failed".format(logger,level))
         await ctx.send("change failed")
 
-@bot.command()
-async def download(ctx,message_id:int,target:str=None):
-    message:discord.Message
-    try:
-        message=await bot.get_channel(485322302603657218).get_message(message_id)
-    except discord.NotFound:
-        #not found
-        return
-    if not message.attachments:
-        #no attach
-        return
-    if not target:
-        target="data/"
-    dirname = os.path.dirname(__file__)
-    filename = os.path.join(dirname, target+message.attachments[0].filename)
-    try:
-        await message.attachments[0].save(filename)
-        await ctx.send("save "+filename+" successful")
-    except:
-        await ctx.send("save "+filename+" failed")
-        pass #fail
-
 async def SIGTERM_exit():
     await bot.get_channel(483242913807990806).send(bot.user.name+" has stopped by SIGTERM")
     logging.warning(bot.user.name+" has stopped by SIGTERM")
 
-def SIG_EXIT():
+def SIG_EXIT(signum, frame):
+    time.sleep(5)
     logging.warning(bot.user.name+" has stopped by SIGTERM-")
     print("bye")
+    time.sleep(5)
+    for task in asyncio.Task.all_tasks():
+        task.cancel()
     raise KeyboardInterrupt
 if __name__=="__main__":
-    logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(level=logging.INFO)
     #bot.remove_command('help')
     try:
         signal.signal(signal.SIGTERM, SIG_EXIT)
+        asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,SIG_EXIT)
         bot.loop.add_signal_handler(signal.SIGTERM,SIG_EXIT)
-        #asyncio.get_event_loop().add_signal_handler(signal.SIGTERM,lambda: asyncio.ensure_future(SIGTERM_exit()))
+        logging.info("add handler success")
     except NotImplementedError:
-        pass #run in windows
+        logging.warning("add handler failed")#run in windows
 
     bot.run(os.getenv("DISCORD_TOKEN"))
