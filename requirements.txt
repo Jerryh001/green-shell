@@ -3,3 +3,4 @@ tzlocal
 boto3
 websockets
 redis
+pillow
