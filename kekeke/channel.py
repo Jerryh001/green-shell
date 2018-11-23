@@ -55,7 +55,7 @@ class Channel:
         await self.updateFlags(True)
         await self.updateUsers()
         await self.initMessages(self.name)
-        self.connectEvents = asyncio.gather(self.listen(), self.keepAlive())
+        self.connectEvents = asyncio.wait({self.listen(), self.keepAlive()})
         asyncio.get_event_loop().create_task(self.connectEvents)
 
     async def reConnect(self):
