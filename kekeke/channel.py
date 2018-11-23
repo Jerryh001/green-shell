@@ -46,6 +46,7 @@ class Channel:
         self.last_send = dict()
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
+        self.connectEvents=None
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
@@ -55,14 +56,19 @@ class Channel:
         await self.updateFlags(True)
         await self.updateUsers()
         await self.initMessages(self.name)
-        asyncio.get_event_loop().create_task(self.listen())
-        asyncio.get_event_loop().create_task(self.keepAlive())
+        self.connectEvents=asyncio.gather(self.listen(),self.keepAlive())
+        asyncio.get_event_loop().create_task(self.connectEvents)
+
+    async def reConnect(self):
+        self.connectEvents.cancel()
+        asyncio.get_event_loop().create_task(self.initial())
 
     async def keepAlive(self):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "B2BDD9C0DA93926EAB57F7F9D7B941D3", "com.liquable.hiroba.gwt.client.account.IGwtAccountService", "tryExtendsKerma"])
         while not self._session.closed:
             await self.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/accountService")
             await asyncio.sleep(300)
+        asyncio.get_event_loop().create_task(self.reConnect())
 
     async def subscribe(self):
         GUID = self.redis.get(self.redisPerfix+"botGUID")
@@ -127,6 +133,7 @@ class Channel:
                             asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"]))
                         elif m.payload["votingState"] == "COMPLETE":
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
+        asyncio.get_event_loop().create_task(self.reConnect())
 
     async def post(self, payload: str, url: str = _square_url, header: dict = _header) -> dict:
         for i in range(3):
