@@ -5,9 +5,6 @@ import logging
 import aiohttp
 
 from .channel import Channel
-from .GWTpayload import GWTPayload
-from .message import Message, MessageType
-from .user import User
 
 
 class Bot:
