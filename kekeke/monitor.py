@@ -14,7 +14,7 @@ import websockets
 from .bot import Bot as KBot
 from .channel import Channel
 from .GWTpayload import GWTPayload
-from .message import Message, MessageType
+from .message import Message
 from .user import User
 
 
@@ -41,7 +41,7 @@ class Monitor(object):
             self._last_time=message.time
             if message.url:
                 if re.search(r"^https?://\S+\.(jp[e]?g|png|gif)$",message.url,re.IGNORECASE):
-                    if message.mtype==MessageType.deleteimage:
+                    if message.mtype==Message.MessageType.deleteimage:
                         embed.set_thumbnail(url=message.url)
                     else:
                         embed.set_image(url=message.url)
