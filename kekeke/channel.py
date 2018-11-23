@@ -45,7 +45,7 @@ class Channel:
         self.last_send = dict()
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
-        self.connectEvents=None
+        self.connectEvents = None
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
@@ -55,7 +55,7 @@ class Channel:
         await self.updateFlags(True)
         await self.updateUsers()
         await self.initMessages(self.name)
-        self.connectEvents=asyncio.gather(self.listen(),self.keepAlive())
+        self.connectEvents = asyncio.gather(self.listen(), self.keepAlive())
         asyncio.get_event_loop().create_task(self.connectEvents)
 
     async def reConnect(self):
@@ -134,14 +134,16 @@ class Channel:
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
         asyncio.get_event_loop().create_task(self.reConnect())
 
-    async def post(self, payload: str, url: str = _square_url, header: dict = _header) -> dict:
+    async def post(self, payload, url: str = _square_url, header: dict = _header) -> dict:
         for i in range(3):
             async with self._session.post(url=url, data=payload, headers=header) as r:
                 if r.status != 200:
-                    self._log.warning("<第"+str(i)+"次post失敗> payload="+payload+" url="+url+" header="+str(header))
+                    self._log.warning("<第"+str(i)+"次post失敗> payload="+str(payload)+" url="+url+" header="+str(header))
                 else:
                     text = await r.text()
-                    return json.loads(text[4:])
+                    if text[:4] == "//OK":
+                        text = text[4:]
+                    return json.loads(text)
         return None
 
     async def updateFlags(self, pull=False):
@@ -283,12 +285,11 @@ class Channel:
             texts.append(command.commands[com].name+"\n"+command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
         d.text((20, 20), "\n".join(texts), fill=(0, 0, 0), font=font)
-        img.save(os.path.join(os.getcwd(), "data/help.png"))
-        with open(os.path.join(os.getcwd(), "data/help.png"), 'rb') as f:
-            files = {'file': f}
-            async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data=files) as r:
-                text = json.loads(await r.text())
-                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=text["url"]), showID=False)
+        filepath=os.path.join(os.getcwd(), "data/help.png")
+        img.save(filepath)
+        with open(filepath, 'rb') as f:
+            text = await self.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", payload={'file': f}, header={})
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=text["url"]), showID=False)
 
     @command.command(help="移除特定使用者所發出的檔案\n.remove <使用者> <檔案>\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
