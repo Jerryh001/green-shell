@@ -20,8 +20,7 @@ from kekeke import command, flag, red
 
 from .GWTpayload import GWTPayload
 from .jsonfile import JsonFile
-from .media import Media
-from .message import Message, MessageType
+from .message import *
 from .user import User
 
 
@@ -46,6 +45,7 @@ class Channel:
         self.last_send = dict()
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
+        self.connectEvents = None
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
@@ -55,14 +55,19 @@ class Channel:
         await self.updateFlags(True)
         await self.updateUsers()
         await self.initMessages(self.name)
-        asyncio.get_event_loop().create_task(self.listen())
-        asyncio.get_event_loop().create_task(self.keepAlive())
+        self.connectEvents = asyncio.gather(self.listen(), self.keepAlive())
+        asyncio.get_event_loop().create_task(self.connectEvents)
+
+    async def reConnect(self):
+        self.connectEvents.cancel()
+        asyncio.get_event_loop().create_task(self.initial())
 
     async def keepAlive(self):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "B2BDD9C0DA93926EAB57F7F9D7B941D3", "com.liquable.hiroba.gwt.client.account.IGwtAccountService", "tryExtendsKerma"])
         while not self._session.closed:
             await self.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/accountService")
             await asyncio.sleep(300)
+        asyncio.get_event_loop().create_task(self.reConnect())
 
     async def subscribe(self):
         GUID = self.redis.get(self.redisPerfix+"botGUID")
@@ -119,23 +124,26 @@ class Channel:
                 if m.user.ID:
                     asyncio.get_event_loop().create_task(self.receiveMessage(m))
             elif publisher == "SERVER":
-                if m.mtype == MessageType.population:
+                if m.mtype == Message.MessageType.population:
                     asyncio.get_event_loop().create_task(self.updateUsers())
-                elif m.mtype == MessageType.vote:
+                elif m.mtype == Message.MessageType.vote:
                     if m.payload["title"] == "__i18n_voteForbidTitle":
                         if m.payload["votingState"] == "CREATE":
                             asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"]))
                         elif m.payload["votingState"] == "COMPLETE":
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
+        asyncio.get_event_loop().create_task(self.reConnect())
 
-    async def post(self, payload: str, url: str = _square_url, header: dict = _header) -> dict:
+    async def post(self, payload, url: str = _square_url, header: dict = _header) -> dict:
         for i in range(3):
             async with self._session.post(url=url, data=payload, headers=header) as r:
                 if r.status != 200:
-                    self._log.warning("<第"+str(i)+"次post失敗> payload="+payload+" url="+url+" header="+str(header))
+                    self._log.warning("<第"+str(i)+"次post失敗> payload="+str(payload)+" url="+url+" header="+str(header))
                 else:
                     text = await r.text()
-                    return json.loads(text[4:])
+                    if text[:4] == "//OK":
+                        text = text[4:]
+                    return json.loads(text)
         return None
 
     async def updateFlags(self, pull=False):
@@ -163,10 +171,10 @@ class Channel:
                 for user in joined:
                     if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[0].time:
                         if self.isNotWelcome(user):
-                            await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<我就是GS，快來Ban我>"))
+                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<我就是GS，快來Ban我>"))
                             self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
                         elif re.match(r"(誰啊|unknown)", user.nickname):
-                            await self.sendMessage(Message(mtype=MessageType.chat, user=user, content="<自動發送>"))
+                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<自動發送>"))
                             self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
 
             return joined
@@ -190,8 +198,8 @@ class Channel:
     async def updateMedia(self, messages: list, pop=False):
         for message in messages:
             self.last_send[message.user.ID] = message.time
-            if re.search(r"(^https://www\.youtube\.com/.+|^https?://\S+\.(jpe?g|png|gif)$)", message.url, re.IGNORECASE):
-                media = Media(user=message.user, url=message.url, remove=(message.mtype == MessageType.deleteimage))
+            media = Media.loadMeaaage(message)
+            if media:
                 if media.remove and not pop:
                     try:
                         self.medias.pop(media)
@@ -210,11 +218,11 @@ class Channel:
             for media in self.medias:
                 issilent = self.redis.sismember(self.redisPerfix+"silentUsers", media.user.ID)
                 if not issilent and self.isForbiddenMessage(message):
-                    await self.muda(Message(mtype=MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
+                    await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
                 if issilent:
                     user = media.user
                     user.nickname = self.user.nickname
-                    await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
+                    await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
 
     def isForbiddenMessage(self, message: Message)->bool:
         if self.redis.sismember(self.redisPerfix+"auth", message.user.ID) or self.redis.sismember("kekeke::bot::global::auth", message.user.ID):
@@ -260,7 +268,7 @@ class Channel:
         return self.message_queue.get()
 
     async def toggleFlag(self, flag: str):
-        if self.redis.sismember(self.redisPerfix+"flags",flag):
+        if self.redis.sismember(self.redisPerfix+"flags", flag):
             self.redis.srem(self.redisPerfix+"flags", flag)
         else:
             self.redis.sadd(self.redisPerfix+"flags", flag)
@@ -275,15 +283,13 @@ class Channel:
         texts = []
         for com in command.commands:
             texts.append(command.commands[com].name+"\n"+command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
-        font=ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"),size=20)
+        font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
         d.text((20, 20), "\n".join(texts), fill=(0, 0, 0), font=font)
-        img.save(os.path.join(os.getcwd(), "data/help.png"))
-        with open(os.path.join(os.getcwd(), "data/help.png"),'rb') as f:
-            files = {'file': f}
-            async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data=files) as r:
-                text=json.loads(await r.text())
-                await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=text["url"]), showID=False)
-        
+        filepath=os.path.join(os.getcwd(), "data/help.png")
+        img.save(filepath)
+        with open(filepath, 'rb') as f:
+            text = await self.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", payload={'file': f}, header={})
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=text["url"]), showID=False)
 
     @command.command(help="移除特定使用者所發出的檔案\n.remove <使用者> <檔案>\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
@@ -299,7 +305,7 @@ class Channel:
         for media in medias_to_remove:
             user = media.user
             user.nickname = self.user.nickname
-            await self.sendMessage(Message(mtype=MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
+            await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
 
     @command.command(help="修改自己的使用者名稱，只在使用者列表有效\n.rename <新名稱>")
     async def rename(self, message: Message, *args):
@@ -327,7 +333,7 @@ class Channel:
                     self.redis.sadd(self.redisPerfix+"members", message.metionUsers[0].ID)
                     success = True
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"一般的使用者"
-        await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=result), showID=False)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result), showID=False)
 
     @command.command(help="發起封鎖特定使用者投票\n.ban <使用者>")
     async def ban(self, message: Message, *args):
@@ -354,7 +360,7 @@ class Channel:
                     self.redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
                 success = True
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"認證的使用者"
-        await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=result), showID=False)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result), showID=False)
 
     @command.command(help="啟用/停用自動發送訊息功能\n.autotalk")
     async def autotalk(self, message: Message, *args):
@@ -378,7 +384,7 @@ class Channel:
             else:
                 self.redis.sadd(self.redisPerfix+"silentUsers", user.ID)
                 await self.remove(message, args[0])
-                await self.sendMessage(Message(mtype=MessageType.chat, user=self.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
+                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
     @command.command(authonly=True, help='啟用/停用當使用者發送特定關鍵字時，自動進行"muda"指令\n.automuda')
     async def automuda(self, message: Message, *args):
