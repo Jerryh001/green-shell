@@ -171,10 +171,10 @@ class Channel:
                 for user in joined:
                     if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[0].time:
                         if self.isNotWelcome(user):
-                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<我就是GS，快來Ban我>"))
+                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<GS出現了，小心，這是替身攻擊！>"))
                             self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
                         elif re.match(r"(誰啊|unknown)", user.nickname):
-                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<自動發送>"))
+                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<哈囉@"+user.nickname+"，本版目前管制中，請取個好名稱方便大家認識你喔>",metionUsers=[user]))
                             self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
 
             return joined
@@ -259,7 +259,11 @@ class Channel:
             "payload": {}}
         if message.user.color:
             message_obj["senderColorToken"] = message.user.color
-        payload = 'SEND\ndestination:/topic/{0}\n\n'.format(self.name)+json.dumps(message_obj)
+        if message.metionUsers:
+            message_obj["payload"]["replyPublicIds"]=[]
+            for muser in message.metionUsers:
+                message_obj["payload"]["replyPublicIds"].append(muser.ID)
+        payload = 'SEND\ndestination:/topic/{0}\n\n'.format(self.name)+json.dumps(message_obj,ensure_ascii=False)
         await self.ws.send_str(payload)
 
     async def waitMessage(self)->Message:
@@ -272,6 +276,7 @@ class Channel:
             self.redis.srem(self.redisPerfix+"flags", flag)
         else:
             self.redis.sadd(self.redisPerfix+"flags", flag)
+        await self.updateFlags(pull=True)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
 ############################################commands#######################################
