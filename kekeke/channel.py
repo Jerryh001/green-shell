@@ -8,6 +8,7 @@ import os
 import random
 import re
 import time
+import typing
 from datetime import datetime
 from queue import Queue
 
@@ -46,6 +47,7 @@ class Channel:
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
         self.connectEvents = None
+        self.pauseListen=False
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
@@ -110,7 +112,7 @@ class Channel:
     async def listen(self):
         while not self.ws.closed:
             msg = await self.ws.receive()
-            if msg.type != aiohttp.WSMsgType.TEXT:
+            if msg.type != aiohttp.WSMsgType.TEXT or self.pauseListen:
                 continue
             self._log.debug(msg.data)
             msg_list = list(filter(None, msg.data.split('\n')))
@@ -134,7 +136,7 @@ class Channel:
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
         asyncio.get_event_loop().create_task(self.reConnect())
 
-    async def post(self, payload, url: str = _square_url, header: dict = _header) -> dict:
+    async def post(self, payload, url: str = _square_url, header: dict = _header) -> typing.Dict[str,typing.Any]:
         for i in range(3):
             async with self._session.post(url=url, data=payload, headers=header) as r:
                 if r.status != 200:
@@ -154,7 +156,7 @@ class Channel:
             self.redis.sadd(self.redisPerfix+"flags", self.flags)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
-    async def updateUsers(self)->set:
+    async def updateUsers(self)->typing.Set[User]:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         j = await self.post(payload=_payload.string)
@@ -174,7 +176,7 @@ class Channel:
                             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<GS出現了，小心，這是替身攻擊！>"))
                             self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
                         elif re.match(r"(誰啊|unknown)", user.nickname):
-                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<哈囉@"+user.nickname+"，本版目前管制中，請取個好名稱方便大家認識你喔>",metionUsers=[user]))
+                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<哈囉@"+user.nickname+"，本版目前管制中，請取個好名稱方便大家認識你喔>", metionUsers=[user]))
                             self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
 
             return joined
@@ -260,10 +262,10 @@ class Channel:
         if message.user.color:
             message_obj["senderColorToken"] = message.user.color
         if message.metionUsers:
-            message_obj["payload"]["replyPublicIds"]=[]
+            message_obj["payload"]["replyPublicIds"] = []
             for muser in message.metionUsers:
                 message_obj["payload"]["replyPublicIds"].append(muser.ID)
-        payload = 'SEND\ndestination:/topic/{0}\n\n'.format(self.name)+json.dumps(message_obj,ensure_ascii=False)
+        payload = 'SEND\ndestination:/topic/{0}\n\n'.format(self.name)+json.dumps(message_obj, ensure_ascii=False)
         await self.ws.send_str(payload)
 
     async def waitMessage(self)->Message:
@@ -290,11 +292,11 @@ class Channel:
             texts.append(command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
         d.text((20, 20), "\n".join(texts), fill=(0, 0, 0), font=font)
-        filepath=os.path.join(os.getcwd(), "data/help.png")
+        filepath = os.path.join(os.getcwd(), "data/help.png")
         img.save(filepath)
         with open(filepath, 'rb') as f:
             async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
-                text=json.loads(await r.text())
+                text = json.loads(await r.text())
                 await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=text["url"]), showID=False)
 
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
@@ -396,6 +398,38 @@ class Channel:
     async def automuda(self, message: Message, *args):
         await self.toggleFlag(flag.muda)
 
+    @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n消除所有非成員的訊息')
+    async def zawarudo(self, message: Message, *args):
+        if args[0]==self.name:
+            self.pauseListen=True
+            vaildusers:typing.Set[User]=self.redis.sunion(self.redisPerfix+"members",self.redisPerfix+"auth","kekeke::bot::global::auth")
+            def isValid(m:Message)->bool:
+                return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
+            validmessages=list(filter(isValid,self.messages))
+            if len(validmessages)<100:
+                validmessages=list(Message() for _ in range(100-len(validmessages)))+validmessages
+            medias=self.medias.copy()
+
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="ZA WARUDO 時間暫停!"), showID=False)
+            await asyncio.sleep(1)
+
+            for media in medias:
+                media.user.nickname=self.user.nickname
+                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=media.user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
+                await asyncio.sleep(0.2)
+
+            await asyncio.sleep(1)
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="時間繼續"), showID=False)
+            await asyncio.sleep(1)
+
+            for m in validmessages:
+                await self.sendMessage(m,showID=False)
+
+            await self.setMessage(validmessages)
+            self.pauseListen=False
+
+
+
     async def vote(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
@@ -411,5 +445,5 @@ class Channel:
         await self.post(payload=_payload.string, url=self._vote_url)
 
 
-def clip(num: int, a: int, b: int):
+def clip(num: int, a: int, b: int)->int:
     return min(max(num, a), b)
