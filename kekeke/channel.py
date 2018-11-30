@@ -50,6 +50,7 @@ class Channel:
         self.connectEvents = None
         self.pauseListen = False
         self.pauseMessage = Message()
+        self.closed=False
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
@@ -59,19 +60,22 @@ class Channel:
         await self.updateFlags(True)
         await self.updateUsers()
         await self.initMessages(self.name)
-        self.connectEvents = asyncio.wait({self.listen(), self.keepAlive()})
-        asyncio.get_event_loop().create_task(self.connectEvents)
+        self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
+        
 
-    async def Close(self):
+    async def Close(self,stop=True):
+        if stop:
+            self.closed=True
+        self.connectEvents.cancel()
         if self.ws and not self.ws.closed:
             await self.ws.close()
         if self._session and not self._session.closed:
             await self._session.close()
 
     async def reConnect(self):
-        self.connectEvents.cancel()
-        await self.Close()
-        asyncio.get_event_loop().create_task(self.initial())
+        await self.Close(stop=False)
+        if not self.closed:
+            asyncio.get_event_loop().create_task(self.initial())
 
     async def keepAlive(self):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "B2BDD9C0DA93926EAB57F7F9D7B941D3", "com.liquable.hiroba.gwt.client.account.IGwtAccountService", "tryExtendsKerma"])
