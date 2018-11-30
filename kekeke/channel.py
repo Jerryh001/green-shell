@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import functools
 import html
 import inspect
@@ -47,8 +48,8 @@ class Channel:
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
         self.connectEvents = None
-        self.pauseListen=False
-        self.pauseMessage=Message()
+        self.pauseListen = False
+        self.pauseMessage = Message()
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
@@ -124,8 +125,8 @@ class Channel:
             if not m:
                 continue
             if self.pauseListen:
-                if m==self.pauseMessage:
-                    self.pauseListen=False
+                if m == self.pauseMessage:
+                    self.pauseListen = False
                 continue
             if publisher == "CLIENT_TRANSPORT":
                 if m.user.ID:
@@ -141,7 +142,7 @@ class Channel:
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
         asyncio.get_event_loop().create_task(self.reConnect())
 
-    async def post(self, payload, url: str = _square_url, header: dict = _header) -> typing.Dict[str,typing.Any]:
+    async def post(self, payload, url: str = _square_url, header: dict = _header) -> typing.Dict[str, typing.Any]:
         for i in range(3):
             async with self._session.post(url=url, data=payload, headers=header) as r:
                 if r.status != 200:
@@ -227,7 +228,7 @@ class Channel:
                 if not issilent and self.isForbiddenMessage(message):
                     await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
                 if issilent:
-                    user = media.user.copy()
+                    user = copy.deepcopy(media.user)
                     user.nickname = self.user.nickname
                     await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
 
@@ -405,23 +406,24 @@ class Channel:
 
     @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n消除所有非成員的訊息')
     async def zawarudo(self, message: Message, *args):
-        if args[0]==self.name:
-            self.pauseListen=True
-            vaildusers:typing.Set[User]=self.redis.sunion(self.redisPerfix+"members",self.redisPerfix+"auth","kekeke::bot::global::auth")
-            def isValid(m:Message)->bool:
+        if args[0] == self.name:
+            self.pauseListen = True
+            vaildusers: typing.Set[User] = self.redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", "kekeke::bot::global::auth")
+
+            def isValid(m: Message)->bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
-            validmessages=list(filter(isValid,self.messages))
-            self.pauseMessage=validmessages[-1]
-            if len(validmessages)<100:
-                validmessages=list(Message() for _ in range(100-len(validmessages)))+validmessages
-            medias=self.medias.copy()
+            validmessages = list(filter(isValid, self.messages))
+            self.pauseMessage = validmessages[-1]
+            if len(validmessages) < 100:
+                validmessages = list(Message() for _ in range(100-len(validmessages)))+validmessages
+            medias = self.medias.copy()
 
             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="ZA WARUDO 時間暫停!"), showID=False)
             await asyncio.sleep(1)
 
             for media in medias:
-                user=media.user.copy()
-                user.nickname=self.user.nickname
+                user = copy.deepcopy(media.user)
+                user.nickname = self.user.nickname
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
                 await asyncio.sleep(0.2)
 
@@ -430,12 +432,9 @@ class Channel:
             await asyncio.sleep(1)
 
             for m in validmessages:
-                await self.sendMessage(m,showID=False)
+                await self.sendMessage(m, showID=False)
 
             await self.setMessage(validmessages)
-            
-
-
 
     async def vote(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
