@@ -62,8 +62,15 @@ class Channel:
         self.connectEvents = asyncio.wait({self.listen(), self.keepAlive()})
         asyncio.get_event_loop().create_task(self.connectEvents)
 
+    async def Close(self):
+        if self.ws and not self.ws.closed:
+            self.ws.close()
+        if self._session and not self._session.closed:
+            self._session.close()
+
     async def reConnect(self):
         self.connectEvents.cancel()
+        await self.Close()
         asyncio.get_event_loop().create_task(self.initial())
 
     async def keepAlive(self):
