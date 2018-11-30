@@ -411,6 +411,7 @@ class Channel:
             def isValid(m:Message)->bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
             validmessages=list(filter(isValid,self.messages))
+            self.pauseMessage=validmessages[0]
             if len(validmessages)<100:
                 validmessages=list(Message() for _ in range(100-len(validmessages)))+validmessages
             medias=self.medias.copy()
@@ -432,7 +433,7 @@ class Channel:
                 await self.sendMessage(m,showID=False)
 
             await self.setMessage(validmessages)
-            self.pauseMessage=validmessages[0]
+            
 
 
 
