@@ -64,9 +64,9 @@ class Channel:
 
     async def Close(self):
         if self.ws and not self.ws.closed:
-            self.ws.close()
+            await self.ws.close()
         if self._session and not self._session.closed:
-            self._session.close()
+            await self._session.close()
 
     async def reConnect(self):
         self.connectEvents.cancel()
