@@ -227,7 +227,7 @@ class Channel:
                 if not issilent and self.isForbiddenMessage(message):
                     await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
                 if issilent:
-                    user = media.user
+                    user = media.user.copy()
                     user.nickname = self.user.nickname
                     await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
 
@@ -419,8 +419,9 @@ class Channel:
             await asyncio.sleep(1)
 
             for media in medias:
-                media.user.nickname=self.user.nickname
-                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=media.user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
+                user=media.user.copy()
+                user.nickname=self.user.nickname
+                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
                 await asyncio.sleep(0.2)
 
             await asyncio.sleep(1)
