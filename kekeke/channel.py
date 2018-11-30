@@ -261,7 +261,7 @@ class Channel:
             "senderNickName": (message.user.ID[:5]+"#" if showID else "")+message.user.nickname,
             "anchorUsername": "",
             "content": html.escape(message.content) if escape else message.content,
-            "date": str(int(time.time()*1000)),
+            "date":  str(int(message.time.timestamp()*1000)),
             "eventType": message.mtype.value,
             "payload": {}}
         if message.user.color:
