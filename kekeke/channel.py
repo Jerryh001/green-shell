@@ -48,6 +48,7 @@ class Channel:
         self.redis = redis.StrictRedis(connection_pool=red.pool())
         self.connectEvents = None
         self.pauseListen=False
+        self.pauseMessage=Message()
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
@@ -112,7 +113,7 @@ class Channel:
     async def listen(self):
         while not self.ws.closed:
             msg = await self.ws.receive()
-            if msg.type != aiohttp.WSMsgType.TEXT or self.pauseListen:
+            if msg.type != aiohttp.WSMsgType.TEXT:
                 continue
             self._log.debug(msg.data)
             msg_list = list(filter(None, msg.data.split('\n')))
@@ -121,6 +122,10 @@ class Channel:
             publisher = msg_list[2][len("publisher:"):]
             m = Message.loadjson(msg_list[3])
             if not m:
+                continue
+            if self.pauseListen:
+                if m==self.pauseMessage:
+                    self.pauseListen=False
                 continue
             if publisher == "CLIENT_TRANSPORT":
                 if m.user.ID:
@@ -426,7 +431,7 @@ class Channel:
                 await self.sendMessage(m,showID=False)
 
             await self.setMessage(validmessages)
-            self.pauseListen=False
+            self.pauseMessage=validmessages[0]
 
 
 
