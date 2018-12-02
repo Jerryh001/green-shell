@@ -212,6 +212,8 @@ class Channel:
     async def setMessage(self, message_list: list):
         self.messages = message_list
         self.medias = dict()
+        self.last_send_Nicknames = dict()
+        self.last_send_IDs = dict()
         await self.updateMedia(self.messages)
 
     async def updateMedia(self, messages: list, pop=False):
