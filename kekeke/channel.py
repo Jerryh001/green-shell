@@ -188,8 +188,8 @@ class Channel:
             self.users = new_users
             if flag.talk in self.flags:
                 for user in joined:
-                    basemessage = self.messages[10] if len(self.messages) > 10 else self.messages[-1]
-                    if not ((user.ID in self.last_send_IDs and self.last_send_IDs[user.ID] >= basemessage.time) or (user.nickname in self.last_send_Nicknames and self.last_send_Nicknames[user.nickname] >= basemessage.time)):
+                    basemessage = self.messages[-10] if len(self.messages) >= 10 else self.messages[0]
+                    if not ((user.ID in self.last_send_IDs and self.last_send_IDs[user.ID] >= .time) or (user.nickname in self.last_send_Nicknames and self.last_send_Nicknames[user.nickname] >= self.messages[0].time)):
                         if self.isNotWelcome(user):
                             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<GS出現了，小心，這是替身攻擊！>"))
                             self.last_send_Nicknames[user.nickname] = self.last_send_IDs[user.ID] = tzlocal.get_localzone().localize(datetime.now())
