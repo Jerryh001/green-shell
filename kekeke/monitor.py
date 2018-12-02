@@ -79,3 +79,5 @@ class Monitor(object):
             self._log.debug(m)
             async with self.stdout.typing():
                 await self.SendReport([m])
+    async def Stop(self):
+        await self.bot.unSubscribe(self.name)

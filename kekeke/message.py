@@ -65,6 +65,9 @@ class Message:
             pass
         return Message(mtype=mtype, time=message_time, user=User(ID=message["senderPublicId"], name=message["senderNickName"], color=usercolor), content=message["content"], url=url.group(0) if url else "", metionUsers=metionUsers, payload=message["payload"] if "payload" in message else dict())
 
+    def __eq__(self, that):
+        return isinstance(that, Message) and self.mtype == that.mtype and self.time == that.time and self.user.ID == that.user.ID and self.content == that.content
+
 
 class Media:
 

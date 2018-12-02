@@ -20,6 +20,7 @@ class Bot:
 
     async def unSubscribe(self, channel: str):
         try:
-            self.channels.pop(channel)
+            c:Channel=self.channels.pop(channel)
+            await c.Close()
         except KeyError:
             pass
