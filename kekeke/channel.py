@@ -44,13 +44,14 @@ class Channel:
         self.users = set()
         self.flags = set()
         self.medias = dict()
-        self.last_send = dict()
+        self.last_send_IDs = dict()
+        self.last_send_Nicknames = dict()
         self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
         self.redis = redis.StrictRedis(connection_pool=red.pool())
         self.connectEvents = None
         self.pauseListen = False
         self.pauseMessage = Message()
-        self.closed=False
+        self.closed = False
         asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
@@ -61,11 +62,10 @@ class Channel:
         await self.updateUsers()
         await self.initMessages(self.name)
         self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
-        
 
-    async def Close(self,stop=True):
+    async def Close(self, stop=True):
         if stop:
-            self.closed=True
+            self.closed = True
         self.connectEvents.cancel()
         if self.ws and not self.ws.closed:
             await self.ws.close()
@@ -188,13 +188,13 @@ class Channel:
             self.users = new_users
             if flag.talk in self.flags:
                 for user in joined:
-                    if user.ID not in self.last_send or self.last_send[user.ID] < self.messages[0].time:
+                    if not ((user.ID in self.last_send_IDs and self.last_send_IDs[user.ID] >= self.messages[0].time) or (user.nickname in self.last_send_Nicknames and self.last_send_Nicknames[user.nickname] >= self.messages[0].time)):
                         if self.isNotWelcome(user):
                             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<GS出現了，小心，這是替身攻擊！>"))
-                            self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
+                            self.last_send_Nicknames[user.nickname] = self.last_send_IDs[user.ID] = tzlocal.get_localzone().localize(datetime.now())
                         elif re.match(r"(誰啊|unknown)", user.nickname):
                             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<哈囉@"+user.nickname+"，本版目前管制中，請取個好名稱方便大家認識你喔>", metionUsers=[user]))
-                            self.last_send[user.ID] = tzlocal.get_localzone().localize(datetime.now())
+                            self.last_send_Nicknames[user.nickname] = self.last_send_IDs[user.ID] = tzlocal.get_localzone().localize(datetime.now())
 
             return joined
 
@@ -216,7 +216,7 @@ class Channel:
 
     async def updateMedia(self, messages: list, pop=False):
         for message in messages:
-            self.last_send[message.user.ID] = message.time
+            self.last_send_Nicknames[message.user.nickname] = self.last_send_IDs[message.user.ID] = message.time
             media = Media.loadMeaaage(message)
             if media:
                 if media.remove and not pop:
@@ -425,8 +425,9 @@ class Channel:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
             validmessages = list(filter(isValid, self.messages))
             self.pauseMessage = validmessages[-1]
+            oldest = validmessages[0]
             if len(validmessages) < 100:
-                validmessages = list(Message() for _ in range(100-len(validmessages)))+validmessages
+                validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
             medias = self.medias.copy()
 
             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="ZA WARUDO 時間暫停!"), showID=False)
