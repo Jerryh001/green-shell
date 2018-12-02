@@ -59,8 +59,8 @@ class Channel:
         self.ws: aiohttp.ClientWebSocketResponse = await self._session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket", heartbeat=120).__aenter__()
         await self.subscribe()
         await self.updateFlags(True)
-        await self.updateUsers()
         await self.initMessages(self.name)
+        await self.updateUsers()
         self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
 
     async def Close(self, stop=True):
