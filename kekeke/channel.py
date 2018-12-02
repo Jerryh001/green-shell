@@ -191,7 +191,7 @@ class Channel:
                     basemessage = self.messages[-10] if len(self.messages) > 10 else self.messages[0]
                     if not ((user.ID in self.last_send_IDs and self.last_send_IDs[user.ID] >= basemessage.time) or (user.nickname in self.last_send_Nicknames and self.last_send_Nicknames[user.nickname] >= basemessage.time)):
                         if self.isNotWelcome(user):
-                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<GS出現了，小心，這是替身攻擊！>"))
+                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<GS出現了，小心，這是替身攻擊！>", metionUsers=list(self.users)))
                             self.last_send_Nicknames[user.nickname] = self.last_send_IDs[user.ID] = tzlocal.get_localzone().localize(datetime.now())
                         elif re.match(r"(誰啊|unknown)", user.nickname):
                             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<哈囉@"+user.nickname+"，本版目前管制中，請取個好名稱方便大家認識你喔>", metionUsers=[user]))
