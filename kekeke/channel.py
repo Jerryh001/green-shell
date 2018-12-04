@@ -301,23 +301,37 @@ class Channel:
         await self.updateFlags(pull=True)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
-############################################commands#######################################
-
-    @command.command(help=".help\n顯示這個訊息")
-    async def help(self, message: Message, *args):
-        img = Image.new('RGB', (700, 1500), (255, 255, 255))
-        d = ImageDraw.Draw(img)
-        texts = []
-        for com in command.commands:
-            texts.append(command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
+    async def sendTextImage(self, text: str):
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
-        d.text((20, 20), "\n".join(texts), fill=(0, 0, 0), font=font)
-        filepath = os.path.join(os.getcwd(), "data/help.png")
+        img = Image.new('RGB', (1,1), (255, 255, 255))
+        size = img.ImageDraw.multiline_textsize(text=text, font=font)
+        img.resize(size)
+        d = ImageDraw.Draw(img)
+        d.text((0, 0), text, fill=(0, 0, 0), font=font)
+        filepath = os.path.join(os.getcwd(), "data/image.jpg")
         img.save(filepath)
         with open(filepath, 'rb') as f:
             async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
                 text = json.loads(await r.text())
                 await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=text["url"]), showID=False)
+
+
+############################################commands#######################################
+
+    @command.command(help=".help\n顯示這個訊息")
+    async def help(self, message: Message, *args):
+        texts = []
+        for com in command.commands:
+            texts.append(command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
+        await self.sendTextImage("\n".join(texts))
+
+    @command.command(help=".whois <使用者> (長度=10)\n查詢特定使用者歷史紀錄(最多20筆)")
+    async def whois(self, message: Message, *args):
+        if len(args)>=1:
+            max=10
+            if len (args)>=2:
+                max=int(args[1])
+            
 
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
