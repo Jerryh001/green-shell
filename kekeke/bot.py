@@ -14,6 +14,7 @@ class Bot:
     async def subscribe(self, channel: str):
         if channel not in self.channels:
             self.channels[channel] = Channel(channel)
+            await self.channels[channel].initial()
 
     def isSubscribe(self, channel: str):
         return channel in self.channels
