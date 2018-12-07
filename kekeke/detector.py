@@ -4,9 +4,9 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import datetime, timezone
 
-import time
 import aiohttp
 import discord
 import tzlocal
@@ -152,13 +152,13 @@ class Detector(object):
             for message in board.messages:
                 embed_content += r"`"+message.time.strftime('%d %H:%M')+r"`"
 
-                embed_content += r":star:"
+                embed_content += "⭐"
                 if message.ID_detect:
                     embed_content += r"__**"+message.ID[:5]+r"**__"
                 else:
                     embed_content += message.ID[:5]
 
-                embed_content += r":spy:"
+                embed_content += "🕵️"
                 if message.name_detect:
                     loc = message.name_detect.loc
                     embed_content += (

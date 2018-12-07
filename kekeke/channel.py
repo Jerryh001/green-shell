@@ -33,6 +33,8 @@ class Channel:
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     commendPrefix = os.getenv("DISCORD_PREFIX")
 
+    redisGlobalPerfix = "kekeke::bot::global::"
+
     def __init__(self, name: str):
         self.name = name
         self.user = User("Discord#Bot")
@@ -52,7 +54,6 @@ class Channel:
         self.pauseListen = False
         self.pauseMessage = Message()
         self.closed = False
-        asyncio.get_event_loop().create_task(self.initial())
 
     async def initial(self):
         self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
@@ -188,6 +189,8 @@ class Channel:
             self.users = new_users
             if flag.talk in self.flags:
                 for user in joined:
+                    if user.ID in self.redis.sunion(self.redisPerfix+"ignores",self.redisGlobalPerfix+"ignores",self.redisPerfix+"members",self.redisPerfix+"auth",self.redisGlobalPerfix+"auth"):
+                        continue
                     basemessage = self.messages[-10] if len(self.messages) > 10 else self.messages[0]
                     if not ((user.ID in self.last_send_IDs and self.last_send_IDs[user.ID] >= basemessage.time) or (user.nickname in self.last_send_Nicknames and self.last_send_Nicknames[user.nickname] >= basemessage.time)):
                         if self.isNotWelcome(user):
@@ -247,7 +250,7 @@ class Channel:
                     await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
 
     def isForbiddenMessage(self, message: Message)->bool:
-        if self.redis.sismember(self.redisPerfix+"auth", message.user.ID) or self.redis.sismember("kekeke::bot::global::auth", message.user.ID):
+        if self.redis.sismember(self.redisPerfix+"auth", message.user.ID) or self.redis.sismember(self.redisGlobalPerfix+"auth", message.user.ID):
             return False
         else:
             for keyword in self.redis.smembers(self.redisPerfix+"keyword"):
@@ -301,23 +304,30 @@ class Channel:
         await self.updateFlags(pull=True)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
-############################################commands#######################################
-
-    @command.command(help=".help\n顯示這個訊息")
-    async def help(self, message: Message, *args):
-        img = Image.new('RGB', (700, 1500), (255, 255, 255))
-        d = ImageDraw.Draw(img)
-        texts = []
-        for com in command.commands:
-            texts.append(command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
+    async def sendTextImage(self, text: str):
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
-        d.text((20, 20), "\n".join(texts), fill=(0, 0, 0), font=font)
-        filepath = os.path.join(os.getcwd(), "data/help.png")
+        img = Image.new('RGB', (1, 1), (255, 255, 255))
+        size = img.ImageDraw.multiline_textsize(text=text, font=font)
+        img.resize(size)
+        d = ImageDraw.Draw(img)
+        d.text((0, 0), text, fill=(0, 0, 0), font=font)
+        filepath = os.path.join(os.getcwd(), "data/image.jpg")
         img.save(filepath)
         with open(filepath, 'rb') as f:
             async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
                 text = json.loads(await r.text())
                 await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=text["url"]), showID=False)
+
+
+############################################commands#######################################
+
+
+    @command.command(help=".help\n顯示這個訊息")
+    async def help(self, message: Message, *args):
+        texts = []
+        for com in command.commands:
+            texts.append(command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
+        await self.sendTextImage("\n".join(texts))
 
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
@@ -422,7 +432,7 @@ class Channel:
     async def zawarudo(self, message: Message, *args):
         if args[0] == self.name:
             self.pauseListen = True
-            vaildusers: typing.Set[User] = self.redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", "kekeke::bot::global::auth")
+            vaildusers: typing.Set[User] = self.redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth")
 
             def isValid(m: Message)->bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
