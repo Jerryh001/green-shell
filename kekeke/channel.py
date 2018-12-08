@@ -152,6 +152,8 @@ class Channel:
                             asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"]))
                         elif m.payload["votingState"] == "COMPLETE":
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
+                        else:
+                            asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
         asyncio.get_event_loop().create_task(self.reConnect())
 
     async def post(self, payload, url: str = _square_url, header: dict = _header) -> typing.Dict[str, typing.Any]:
