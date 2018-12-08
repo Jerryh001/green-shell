@@ -309,10 +309,11 @@ class Channel:
     async def sendTextImage(self, text: str):
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
         img = Image.new('RGB', (1, 1), (255, 255, 255))
-        size = img.ImageDraw.multiline_textsize(text=text, font=font)
-        img.resize(size)
         d = ImageDraw.Draw(img)
-        d.text((0, 0), text, fill=(0, 0, 0), font=font)
+        size = d.multiline_textsize(text=text, font=font)
+        img=img.resize(size)
+        d = ImageDraw.Draw(img)
+        d.text((10, 10), text, fill=(0, 0, 0), font=font)
         filepath = os.path.join(os.getcwd(), "data/image.jpg")
         img.save(filepath)
         with open(filepath, 'rb') as f:
