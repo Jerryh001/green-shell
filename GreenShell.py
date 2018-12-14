@@ -9,9 +9,10 @@ from concurrent import futures
 
 import boto3
 import discord
-import redis
+import redis as r
 from discord.ext import commands
 
+from kekeke import red
 from kekeke.bot import Bot as KBot
 from kekeke.detector import Detector
 from kekeke.monitor import Monitor
@@ -20,6 +21,7 @@ CUBENAME = re.search(r"(?<=/)[^/]+$", os.getenv("CLOUDCUBE_URL"), re.IGNORECASE)
 bot = commands.Bot(command_prefix=os.getenv("DISCORD_PREFIX"), owner_id=152965086951112704)
 kbot: KBot = None
 overseeing_list = {}
+redis = r.StrictRedis(connection_pool=red.pool())
 
 
 def DownloadAllFiles():
@@ -74,38 +76,57 @@ async def on_ready():
     DownloadAllFiles()
     logging.info("Logged in as {0.user.name}({0.user.id})".format(bot))
     await bot.get_channel(483242913807990806).send(bot.user.name+"已上線"+bot.command_prefix)
+    if os.getenv("DISCORD_PREFIX") != ".":
+        return
+    bot.loop.create_task(detect())
+    for channelname in redis.smembers("discordbot::overseechannels"):
+        bot.loop.create_task(oversee(channelname))
 
 
 @bot.command(name="kekeke")
 async def _kekeke(ctx: commands.Context):
-    bot.loop.create_task(detect(ctx))
+    bot.loop.create_task(detect())
 
 
-async def detect(ctx: commands.Context):
-    kd = Detector(bot.get_channel(483268806072991794))
+async def detect():
     try:
-        await kd.PeriodRun(30)
-        await ctx.send("stopped kekeke HP moniter")
+        await Detector(bot.get_channel(483268806072991794)).PeriodRun(30)
     except:
-        logging.error("moniter kekeke HP stopped unexcept")
-        await ctx.send("moniter kekeke HP stopped unexcept")
+        logging.error("kekeke首頁監控異常終止")
+        await bot.get_channel(483242913807990806).send("kekeke首頁監控異常終止")
+    await bot.get_channel(483242913807990806).send("發生了不可能的kekeke首頁監控正常終止")
 
 
-@bot.command(aliases=["o"])
-async def oversee(ctx: commands.Context, *, channel: discord.TextChannel):
-    km = Monitor(channel.name, channel, kbot)
-    task = bot.loop.create_task(km.Oversee())
-    overseeing_list[channel.name] = task
+async def oversee(name: str):
+    global kbot
+    if not kbot:
+        kbot = KBot()
+    channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
+    if not channel:
+        logging.error(name+"頻道不存在")
+        await bot.get_channel(483242913807990806).send(name+"頻道不存在")
+        return
+    overseeing_list[channel.name] = bot.loop.create_task(Monitor(channel.name, channel, kbot).Oversee())
+    redis.sadd("discordbot::overseechannels", name)
     try:
-        await task
+        await overseeing_list[channel.name]
     except futures.CancelledError:
-        pass
+        await kbot.unSubscribe(channel.name)
+        overseeing_list.pop(channel.name)
+        redis.srem("discordbot::overseechannels", name)
+        logging.info("已停止監視 "+name)
+        await bot.get_channel(483242913807990806).send("已停止監視`"+name+"`")
     except Exception as e:
         logging.error("監視 "+channel.name+" 時發生錯誤:"+str(e))
-        await ctx.send("監視`"+channel.name+"`時發生錯誤")
+        await bot.get_channel(483242913807990806).send("監視`"+channel.name+"`時發生錯誤")
 
 
-@oversee.before_invoke
+@bot.command(aliases=["o", "oversee"])
+async def _oversee(ctx: commands.Context, *, channel: discord.TextChannel):
+    bot.loop.create_task(oversee(channel.name))
+
+
+@_oversee.before_invoke
 async def _BeforeOversee(ctx: commands.Context):
     global kbot
     if not kbot:
@@ -116,23 +137,10 @@ async def _BeforeOversee(ctx: commands.Context):
         await channel.edit(topic=url)
 
 
-@oversee.after_invoke
-async def _AfterOversee(ctx: commands.Context):
-    name: str = ctx.kwargs["channel"].name
-    await kbot.unSubscribe(name)
-    try:
-        overseeing_list.pop(name)
-    except:
-        pass
-    logging.info("已停止監視 "+name)
-    await ctx.send("已停止監視`"+name+"`")
-
-
 @bot.command()
 async def stop(ctx: commands.Context, channel: discord.TextChannel):
     try:
-        future = overseeing_list.pop(channel.name)
-        future.cancel()
+        overseeing_list[channel.name].cancel()
     except KeyError:
         logging.warning(channel.name+" 不在監視中")
         await ctx.send("`"+channel.name+"`"+"不在監視中")

@@ -56,8 +56,15 @@ class Channel:
         self.closed = False
 
     async def initial(self):
-        self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
-        self.ws: aiohttp.ClientWebSocketResponse = await self._session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket", heartbeat=120).__aenter__()
+        while True:
+            try:
+                self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
+                self.ws: aiohttp.ClientWebSocketResponse = await self._session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket", heartbeat=120).__aenter__()
+                break
+            except:
+                self._log.error("對伺服器建立連線失敗，5秒後重試")
+                self.Close(stop=False)
+                await asyncio.wait(5)
         await self.subscribe()
         await self.updateFlags(True)
         await self.initMessages(self.name)
@@ -67,7 +74,8 @@ class Channel:
     async def Close(self, stop=True):
         if stop:
             self.closed = True
-        self.connectEvents.cancel()
+        if self.connectEvents and not self.connectEvents.done():
+            self.connectEvents.cancel()
         if self.ws and not self.ws.closed:
             await self.ws.close()
         if self._session and not self._session.closed:
@@ -191,7 +199,7 @@ class Channel:
             self.users = new_users
             if flag.talk in self.flags:
                 for user in joined:
-                    if user.ID in self.redis.sunion(self.redisPerfix+"ignores",self.redisGlobalPerfix+"ignores",self.redisPerfix+"members",self.redisPerfix+"auth",self.redisGlobalPerfix+"auth"):
+                    if user.ID in self.redis.sunion(self.redisPerfix+"ignores", self.redisGlobalPerfix+"ignores", self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
                         continue
                     basemessage = self.messages[-10] if len(self.messages) > 10 else self.messages[0]
                     if not ((user.ID in self.last_send_IDs and self.last_send_IDs[user.ID] >= basemessage.time) or (user.nickname in self.last_send_Nicknames and self.last_send_Nicknames[user.nickname] >= basemessage.time)):
@@ -311,7 +319,7 @@ class Channel:
         img = Image.new('RGB', (1, 1), (255, 255, 255))
         d = ImageDraw.Draw(img)
         size = d.multiline_textsize(text=text, font=font)
-        img=img.resize(size)
+        img = img.resize(size)
         d = ImageDraw.Draw(img)
         d.text((10, 10), text, fill=(0, 0, 0), font=font)
         filepath = os.path.join(os.getcwd(), "data/image.jpg")
