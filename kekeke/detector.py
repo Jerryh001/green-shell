@@ -184,14 +184,14 @@ class Detector(object):
     async def PeriodRun(self, period: int):
         self._log.info("Starting monitor kekeke HP ......")
         while True:
-            self._log.info("Checking kekeke HP ......")
+            self._log.debug("Checking kekeke HP ......")
             data = await self.GetHPMessages()
             if len(data) > 0:
                 async with self.stdout.typing():
                     await self.SendReport(data)
                 self._log.info("kekeke HP updated!")
             else:
-                self._log.info("kekeke HP has nothing to update")
+                self._log.debug("kekeke HP has nothing to update")
             await asyncio.sleep(period)
         self._log.info("stopped kekeke HP moniter")
 
