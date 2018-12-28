@@ -275,7 +275,7 @@ class Channel:
         if len(self.messages) > 100:
             await self.updateMedia(self.messages[:-100], True)
             self.messages = self.messages[-100:]
-        if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
+        if message.user != self.user and message.content[0:len(self.commendPrefix)] == self.commendPrefix:
             args = message.content[len(self.commendPrefix):].split()
             if(args[0] in command.commands):
                 asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
@@ -291,7 +291,7 @@ class Channel:
             "content": html.escape(message.content) if escape else message.content,
             "date":  str(int(message.time.timestamp()*1000)),
             "eventType": message.mtype.value,
-            "payload": {}}
+            "payload": message.payload}
         if message.user.color:
             message_obj["senderColorToken"] = message.user.color
         if message.metionUsers:
@@ -313,6 +313,12 @@ class Channel:
             self.redis.sadd(self.redisPerfix+"flags", flag)
         await self.updateFlags(pull=True)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
+
+    async def anonSend(self, text: str, author: str, discordID: str):
+        user = copy.deepcopy(self.user)
+        user.nickname = author+"#Bot"
+        message = Message(Message.MessageType.chat, content=text, user=user, payload={"discordID": discordID})
+        await self.sendMessage(message, showID=False)
 
     async def sendTextImage(self, text: str):
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
