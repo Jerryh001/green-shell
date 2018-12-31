@@ -37,7 +37,15 @@ class Monitor(object):
         for message in data:
             embed=discord.Embed(description=message.content,timestamp=message.time)
             embed.set_footer(text=message.user.ID)
-            embed.set_author(name=message.user.ID[:5]+"@"+message.user.nickname)
+            if "discordID" in message.payload:
+                duser=self.stdout.guild.get_member(message.payload["discordID"])
+                if duser:
+                    embed.set_author(name=duser.display_name+"("+message.user.ID[:5]+")",icon_url=duser.avatar_url)
+                else:
+                    embed.set_author(name=message.user.ID[:5]+"@"+message.user.nickname)
+            else:
+                embed.set_author(name=message.user.ID[:5]+"@"+message.user.nickname)
+            
             self._last_time=message.time
             if message.url:
                 if re.search(r"^https?://\S+\.(jp[e]?g|png|gif)$",message.url,re.IGNORECASE):

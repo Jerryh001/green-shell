@@ -314,9 +314,16 @@ class Channel:
         await self.updateFlags(pull=True)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
-    async def anonSend(self, text: str, author: str, discordID: str):
+    async def anonSend(self, text: str, author: str, discordID: int):
         user = copy.deepcopy(self.user)
-        user.nickname = author+"#Bot"
+        kid=self.redis.hget("discordbot::users::kekekeid",discordID)
+        if kid:
+            user.nickname = author
+            user.ID=kid
+            kcolor=self.redis.hget("discordbot::users::kekekecolor",discordID)
+            user.color=kcolor if kcolor else ""
+        else:
+            user.nickname = author+"#Bot"
         message = Message(Message.MessageType.chat, content=text, user=user, payload={"discordID": discordID})
         await self.sendMessage(message, showID=False)
 
@@ -400,6 +407,19 @@ class Channel:
         _payload.AddPara("java.lang.String/2004016611", [""], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
+    @command.command(help=".autotalk\n啟用/停用自動發送訊息功能")
+    async def autotalk(self, message: Message, *args):
+        await self.toggleFlag(flag.talk)
+
+    @command.command(help=".bind <DiscordID>\n指定一個Discord帳號與目前帳號綁定，用於Discord發話")
+    async def bind(self, message: Message, *args):
+        if len(args)>=1:
+            self.redis.hset("kekeke::bot::users::discordid",message.user.ID,args[0])
+            self.redis.hset("discordbot::users::kekekeid",args[0],message.user.ID)
+            if message.user.color:
+                self.redis.hset("discordbot::users::kekekecolor",args[0],message.user.color)
+            await self.sendMessage("✔️已綁定到Discord")
+        
     @command.command(authonly=True, help=".member (add/remove) <使用者>\n將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n若不指定add/remove則自動判斷")
     async def auth(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
@@ -415,11 +435,7 @@ class Channel:
                     self.redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
                 success = True
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"認證的使用者"
-        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result), showID=False)
-
-    @command.command(help=".autotalk\n啟用/停用自動發送訊息功能")
-    async def autotalk(self, message: Message, *args):
-        await self.toggleFlag(flag.talk)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result,metionUsers=[message.metionUsers[0].ID]), showID=False)
 
     @command.command(authonly=True, help=".clear <目前頻道名稱> X\n【危險】送出X條空白訊息\nX最多為100")
     async def clear(self, message: Message, *args):
