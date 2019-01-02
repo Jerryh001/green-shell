@@ -251,6 +251,8 @@ class Channel:
                     self.medias[media] = self.medias[media]+1 if media in self.medias else 1
         if not pop and self.redis.sismember(self.redisPerfix+"flags", flag.muda):
             for media in self.medias:
+                if media.remove:
+                    continue
                 issilent = self.redis.sismember(self.redisPerfix+"silentUsers", media.user.ID)
                 if not issilent and self.isForbiddenMessage(message):
                     await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
@@ -449,10 +451,7 @@ class Channel:
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
             user: User = message.metionUsers[0]
-
-            if self.redis.sismember(self.redisPerfix+"silentUsers", user.ID):
-                self.redis.srem(self.redisPerfix+"silentUsers", user.ID)
-            else:
+            if not self.redis.sismember(self.redisPerfix+"silentUsers", user.ID):
                 self.redis.sadd(self.redisPerfix+"silentUsers", user.ID)
                 await self.remove(message, args[0])
                 await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
