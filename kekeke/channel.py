@@ -420,9 +420,9 @@ class Channel:
             self.redis.hset("discordbot::users::kekekeid",args[0],message.user.ID)
             if message.user.color:
                 self.redis.hset("discordbot::users::kekekecolor",args[0],message.user.color)
-            await self.sendMessage("✔️已綁定到Discord")
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="✔️已綁定到Discord",metionUsers=[message.user.ID]), showID=False)
         
-    @command.command(authonly=True, help=".member (add/remove) <使用者>\n將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n若不指定add/remove則自動判斷")
+    @command.command(help=".member (add/remove) <使用者>\n將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n若不指定add/remove則自動判斷")
     async def auth(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
         success = False
