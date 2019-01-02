@@ -88,7 +88,7 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
-    if message.channel.category.id == 483268757884633088:
+    if message.channel.category and message.channel.category.id == 483268757884633088:
         if message.channel.id != 483268806072991794 and redis.sismember("discordbot::overseechannels", message.channel.name):
             await kbot.channels[message.channel.name].anonSend(message.clean_content, message.author.display_name, message.author.id)
         await message.delete()
