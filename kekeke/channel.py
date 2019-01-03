@@ -338,7 +338,7 @@ class Channel:
             with open(filepath, 'rb') as f:
                 async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
                     content += json.loads(await r.text())["url"]
-
+            os.remove(filepath)
 
         message = Message(Message.MessageType.chat, content=content, user=user, payload={"discordID": message.author.id})
         await self.sendMessage(message, showID=False)
@@ -357,6 +357,7 @@ class Channel:
             async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
                 text = json.loads(await r.text())
                 await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user if user else self.user, content=text["url"]), showID=False)
+        os.remove(filepath)
 
 
 ############################################commands#######################################
