@@ -14,6 +14,7 @@ from datetime import datetime
 from queue import Queue
 
 import aiohttp
+import discord
 import redis
 import tzlocal
 from PIL import Image, ImageDraw, ImageFont
@@ -317,17 +318,29 @@ class Channel:
         await self.updateFlags(pull=True)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
-    async def anonSend(self, text: str, author: str, discordID: int):
+    async def anonSend(self, message:discord.Message):
         user = copy.deepcopy(self.user)
-        kid = self.redis.hget("discordbot::users::kekekeid", discordID)
+        kid = self.redis.hget("discordbot::users::kekekeid", message.author.id)
         if kid:
-            user.nickname = author
+            user.nickname = message.author.display_name
             user.ID = kid
-            kcolor = self.redis.hget("discordbot::users::kekekecolor", discordID)
+            kcolor = self.redis.hget("discordbot::users::kekekecolor", message.author.id)
             user.color = kcolor if kcolor else ""
         else:
-            user.nickname = author+"#Bot"
-        message = Message(Message.MessageType.chat, content=text, user=user, payload={"discordID": discordID})
+            user.nickname = message.author.display_name+"#Bot"
+
+        content=message.clean_content
+
+        for attach in message.attachments:
+            filepath = os.path.join(os.getcwd(), "data/"+str(attach.id)+attach.filename)
+            with open(filepath,'wb') as f:
+                await attach.save(f)
+            with open(filepath, 'rb') as f:
+                async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
+                    content += json.loads(await r.text())["url"]
+
+
+        message = Message(Message.MessageType.chat, content=content, user=user, payload={"discordID": message.author.id})
         await self.sendMessage(message, showID=False)
 
     async def sendTextImage(self, text: str, user: User = None):
