@@ -22,8 +22,6 @@ from .user import User
 
 
 class Monitor(object):
-    _url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
-    _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
     _log = logging.getLogger(__name__)
 
     def __init__(self, name: str, stdout: discord.TextChannel, bot: KBot):
@@ -53,14 +51,16 @@ class Monitor(object):
                 embed.set_author(name=message.user.ID[:5]+"@"+message.user.nickname)
 
             self._last_time = message.time
+
             if message.url:
-                if re.search(r"^https?://\S+\.(jp[e]?g|png|gif)$", message.url, re.IGNORECASE):
-                    if message.mtype == Message.MessageType.deleteimage:
-                        embed.set_thumbnail(url=message.url)
-                    else:
-                        embed.set_image(url=message.url)
+                isimage = re.search(r"^https?://\S+\.(jp[e]?g|png|gif)$", message.url, re.IGNORECASE)
+                if message.mtype == Message.MessageType.deleteimage and isimage:
+                    embed.set_thumbnail(url=message.url)
                 else:
-                    await self.stdout.send(content=message.url)
+                    if isimage:
+                        embed.set_image(url=message.url)
+                    else:
+                        await self.stdout.send(content=message.url)
 
             await self.stdout.send(embed=embed)
 

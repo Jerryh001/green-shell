@@ -266,7 +266,7 @@ class Channel:
             return False
         else:
             for keyword in self.redis.smembers(self.redisPerfix+"keyword"):
-                if re.search(keyword, message.content, re.IGNORECASE):
+                if re.search(keyword, message.content, re.IGNORECASE) or re.search(keyword, message.user.nickname, re.IGNORECASE):
                     return True
             return False
 
@@ -293,7 +293,8 @@ class Channel:
             "content": html.escape(message.content) if escape else message.content,
             "date":  str(int(message.time.timestamp()*1000)),
             "eventType": message.mtype.value,
-            "payload": message.payload}
+            "payload": message.payload
+        }
         if message.user.color:
             message_obj["senderColorToken"] = message.user.color
         if message.metionUsers:
@@ -318,18 +319,18 @@ class Channel:
 
     async def anonSend(self, text: str, author: str, discordID: int):
         user = copy.deepcopy(self.user)
-        kid=self.redis.hget("discordbot::users::kekekeid",discordID)
+        kid = self.redis.hget("discordbot::users::kekekeid", discordID)
         if kid:
             user.nickname = author
-            user.ID=kid
-            kcolor=self.redis.hget("discordbot::users::kekekecolor",discordID)
-            user.color=kcolor if kcolor else ""
+            user.ID = kid
+            kcolor = self.redis.hget("discordbot::users::kekekecolor", discordID)
+            user.color = kcolor if kcolor else ""
         else:
             user.nickname = author+"#Bot"
         message = Message(Message.MessageType.chat, content=text, user=user, payload={"discordID": discordID})
         await self.sendMessage(message, showID=False)
 
-    async def sendTextImage(self, text: str):
+    async def sendTextImage(self, text: str, user: User = None):
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
         img = Image.new('RGB', (1, 1), (255, 255, 255))
         d = ImageDraw.Draw(img)
@@ -342,7 +343,7 @@ class Channel:
         with open(filepath, 'rb') as f:
             async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
                 text = json.loads(await r.text())
-                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=text["url"]), showID=False)
+                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user if user else self.user, content=text["url"]), showID=False)
 
 
 ############################################commands#######################################
@@ -353,7 +354,7 @@ class Channel:
         texts = []
         for com in command.commands:
             texts.append(command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
-        await self.sendTextImage("\n".join(texts))
+        await self.sendTextImage("\n".join(texts), message.user)
 
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
@@ -415,13 +416,13 @@ class Channel:
 
     @command.command(help=".bind <DiscordID>\n指定一個Discord帳號與目前帳號綁定，用於Discord發話")
     async def bind(self, message: Message, *args):
-        if len(args)>=1:
-            self.redis.hset("kekeke::bot::users::discordid",message.user.ID,args[0])
-            self.redis.hset("discordbot::users::kekekeid",args[0],message.user.ID)
+        if len(args) >= 1:
+            self.redis.hset("kekeke::bot::users::discordid", message.user.ID, args[0])
+            self.redis.hset("discordbot::users::kekekeid", args[0], message.user.ID)
             if message.user.color:
-                self.redis.hset("discordbot::users::kekekecolor",args[0],message.user.color)
-            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="✔️已綁定到Discord",metionUsers=[message.user]), showID=False)
-        
+                self.redis.hset("discordbot::users::kekekecolor", args[0], message.user.color)
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="✔️已綁定到Discord", metionUsers=[message.user]), showID=False)
+
     @command.command(help=".member (add/remove) <使用者>\n將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n若不指定add/remove則自動判斷")
     async def auth(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
@@ -437,7 +438,7 @@ class Channel:
                     self.redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
                 success = True
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"認證的使用者"
-        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result,metionUsers=[message.metionUsers[0].ID]), showID=False)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0].ID]), showID=False)
 
     @command.command(authonly=True, help=".clear <目前頻道名稱> X\n【危險】送出X條空白訊息\nX最多為100")
     async def clear(self, message: Message, *args):
