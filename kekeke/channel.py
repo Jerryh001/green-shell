@@ -200,6 +200,11 @@ class Channel:
             self.users = new_users
             if flag.talk in self.flags:
                 for user in joined:
+                    if user.color and self.redis.hexists("kekeke::bot::users::discordid",user.ID):
+                        discordid=self.redis.hget("kekeke::bot::users::discordid",user.ID)
+                        self.redis.hset("discordbot::users::kekekecolor",discordid,user.color)
+
+
                     if user.ID in self.redis.sunion(self.redisPerfix+"ignores", self.redisGlobalPerfix+"ignores", self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
                         continue
                     basemessage = self.messages[-10] if len(self.messages) > 10 else self.messages[0]
@@ -347,8 +352,8 @@ class Channel:
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
         img = Image.new('RGB', (1, 1), (255, 255, 255))
         d = ImageDraw.Draw(img)
-        size = d.multiline_textsize(text=text, font=font)
-        img = img.resize(size)
+        w,h = d.multiline_textsize(text=text, font=font)
+        img = img.resize((w+20,h+20))
         d = ImageDraw.Draw(img)
         d.text((10, 10), text, fill=(0, 0, 0), font=font)
         filepath = os.path.join(os.getcwd(), "data/image.jpg")
