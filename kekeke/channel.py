@@ -200,10 +200,9 @@ class Channel:
             self.users = new_users
             if flag.talk in self.flags:
                 for user in joined:
-                    if user.color and self.redis.hexists("kekeke::bot::users::discordid",user.ID):
-                        discordid=self.redis.hget("kekeke::bot::users::discordid",user.ID)
-                        self.redis.hset("discordbot::users::kekekecolor",discordid,user.color)
-
+                    if user.color and self.redis.hexists("kekeke::bot::users::discordid", user.ID):
+                        discordid = self.redis.hget("kekeke::bot::users::discordid", user.ID)
+                        self.redis.hset("discordbot::users::kekekecolor", discordid, user.color)
 
                     if user.ID in self.redis.sunion(self.redisPerfix+"ignores", self.redisGlobalPerfix+"ignores", self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
                         continue
@@ -255,17 +254,6 @@ class Channel:
                         pass
                 else:
                     self.medias[media] = self.medias[media]+1 if media in self.medias else 1
-        if not pop and self.redis.sismember(self.redisPerfix+"flags", flag.muda):
-            for media in self.medias:
-                if media.remove:
-                    continue
-                issilent = self.redis.sismember(self.redisPerfix+"silentUsers", media.user.ID)
-                if not issilent and self.isForbiddenMessage(message):
-                    await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
-                if issilent:
-                    user = copy.deepcopy(media.user)
-                    user.nickname = self.user.nickname
-                    await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
 
     def isForbiddenMessage(self, message: Message)->bool:
         if self.redis.sismember(self.redisPerfix+"auth", message.user.ID) or self.redis.sismember(self.redisGlobalPerfix+"auth", message.user.ID):
@@ -283,11 +271,20 @@ class Channel:
         if len(self.messages) > 100:
             await self.updateMedia(self.messages[:-100], True)
             self.messages = self.messages[-100:]
+
+        if self.redis.sismember(self.redisPerfix+"flags", flag.muda) and message.mtype == Message.MessageType.chat:
+            if not self.redis.sismember(self.redisPerfix+"silentUsers", message.user.ID) and self.isForbiddenMessage(message):
+                await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
+            for media in self.medias:
+                if self.redis.sismember(self.redisPerfix+"silentUsers", media.user.ID):
+                    user = copy.deepcopy(media.user)
+                    user.nickname = self.user.nickname
+                    await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
+
         if message.user != self.user and message.content[0:len(self.commendPrefix)] == self.commendPrefix:
             args = message.content[len(self.commendPrefix):].split()
             if(args[0] in command.commands):
                 asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
-
             else:
                 self._log.warning("命令"+args[0]+"不存在")
 
@@ -323,7 +320,7 @@ class Channel:
         await self.updateFlags(pull=True)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
-    async def anonSend(self, message:discord.Message):
+    async def anonSend(self, message: discord.Message):
         user = copy.deepcopy(self.user)
         kid = self.redis.hget("discordbot::users::kekekeid", message.author.id)
         if kid:
@@ -334,11 +331,11 @@ class Channel:
         else:
             user.nickname = message.author.display_name+"#Bot"
 
-        content=message.clean_content
+        content = message.clean_content
 
         for attach in message.attachments:
             filepath = os.path.join(os.getcwd(), "data/"+str(attach.id)+attach.filename)
-            with open(filepath,'wb') as f:
+            with open(filepath, 'wb') as f:
                 await attach.save(f)
             with open(filepath, 'rb') as f:
                 async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
@@ -352,8 +349,8 @@ class Channel:
         font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Regular.otf"), size=20)
         img = Image.new('RGB', (1, 1), (255, 255, 255))
         d = ImageDraw.Draw(img)
-        w,h = d.multiline_textsize(text=text, font=font)
-        img = img.resize((w+20,h+20))
+        w, h = d.multiline_textsize(text=text, font=font)
+        img = img.resize((w+20, h+20))
         d = ImageDraw.Draw(img)
         d.text((10, 10), text, fill=(0, 0, 0), font=font)
         filepath = os.path.join(os.getcwd(), "data/image.jpg")
@@ -387,7 +384,7 @@ class Channel:
             if message.user != message.metionUsers[0]:
                 medias_to_remove.add(Media(user=message.user, url=args[1]))
         for media in medias_to_remove:
-            user = media.user
+            user = copy.deepcopy(media.user)
             user.nickname = self.user.nickname
             await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
 
@@ -473,7 +470,7 @@ class Channel:
             user: User = message.metionUsers[0]
             if not self.redis.sismember(self.redisPerfix+"silentUsers", user.ID):
                 self.redis.sadd(self.redisPerfix+"silentUsers", user.ID)
-                await self.remove(message, args[0])
+                # await self.remove(message, args[0])
                 await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
     @command.command(authonly=True, help='.automuda\n啟用/停用當使用者發送特定關鍵字時，自動進行"muda"指令')
