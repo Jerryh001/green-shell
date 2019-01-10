@@ -71,7 +71,7 @@ class Monitor(object):
                 if last_messages[0].embeds:
                     return last_messages[0].embeds[0].timestamp.replace(tzinfo=timezone.utc)
                 else:
-                    return last_messages[0].created_at().replace(tzinfo=timezone.utc)
+                    return last_messages[0].created_at.replace(tzinfo=timezone.utc)
         except:
             return tzlocal.get_localzone().localize(datetime.min)
 
