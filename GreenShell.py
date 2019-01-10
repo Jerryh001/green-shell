@@ -117,28 +117,32 @@ async def oversee(name: str):
     global kbot
     if not kbot:
         kbot = KBot()
-    channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
+    channel = None
+    try:
+        channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
+    except discord.ext.commands.errors.BadArgument:
+        pass
     if not channel:
         logging.warning(name+"頻道不存在")
         await bot.get_channel(483242913807990806).send(name+"頻道不存在，使用無頭模式監視")
-    overseeing_list[channel.name] = bot.loop.create_task(Monitor(channel.name, channel, kbot).Oversee())
+    overseeing_list[name] = bot.loop.create_task(Monitor(name, channel, kbot).Oversee())
     redis.sadd("discordbot::overseechannels", name)
     try:
-        await overseeing_list[channel.name]
+        await overseeing_list[name]
     except futures.CancelledError:
-        await kbot.unSubscribe(channel.name)
-        overseeing_list.pop(channel.name)
+        await kbot.unSubscribe(name)
+        overseeing_list.pop(name)
         redis.srem("discordbot::overseechannels", name)
         logging.info("已停止監視 "+name)
         await bot.get_channel(483242913807990806).send("已停止監視`"+name+"`")
     except Exception as e:
-        logging.error("監視 "+channel.name+" 時發生錯誤:"+str(e))
-        await bot.get_channel(483242913807990806).send("監視`"+channel.name+"`時發生錯誤")
+        logging.error("監視 "+name+" 時發生錯誤:"+str(e))
+        await bot.get_channel(483242913807990806).send("監視`"+name+"`時發生錯誤")
 
 
 @bot.command(aliases=["o", "oversee"])
-async def _oversee(ctx: commands.Context, *, channel: discord.TextChannel):
-    bot.loop.create_task(oversee(channel.name))
+async def _oversee(ctx: commands.Context, *, channelname: str):
+    bot.loop.create_task(oversee(channelname))
 
 
 @_oversee.before_invoke
@@ -146,22 +150,23 @@ async def _BeforeOversee(ctx: commands.Context):
     global kbot
     if not kbot:
         kbot = KBot()
-    channel: discord.TextChannel = ctx.kwargs["channel"]
-    url = r"https://kekeke.cc/"+channel.name
-    if channel.topic != url:
-        await channel.edit(topic=url)
+    channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == ctx.kwargs["channelname"]), None)
+    if channel:
+        url = r"https://kekeke.cc/"+channel.name
+        if channel.topic != url:
+            await channel.edit(topic=url)
 
 
 @bot.command()
-async def stop(ctx: commands.Context, channel: discord.TextChannel):
+async def stop(ctx: commands.Context, channelname: str):
     try:
-        overseeing_list[channel.name].cancel()
+        overseeing_list[channelname].cancel()
     except KeyError:
-        logging.warning(channel.name+" 不在監視中")
-        await ctx.send("`"+channel.name+"`"+"不在監視中")
+        logging.warning(channelname+" 不在監視中")
+        await ctx.send("`"+channelname+"`"+"不在監視中")
     except:
-        logging.error("停止監視 "+channel.name+" 失敗")
-        await ctx.send("停止監視`"+channel.name+"`失敗")
+        logging.error("停止監視 "+channelname+" 失敗")
+        await ctx.send("停止監視`"+channelname+"`失敗")
 
 
 @bot.command()
