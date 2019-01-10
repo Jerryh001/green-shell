@@ -259,7 +259,7 @@ class Channel:
         if self.redis.sismember(self.redisPerfix+"auth", message.user.ID) or self.redis.sismember(self.redisGlobalPerfix+"auth", message.user.ID):
             return False
         else:
-            for keyword in self.redis.smembers(self.redisPerfix+"keyword"):
+            for keyword in self.redis.smembers(self.redisGlobalPerfix+"keyword"):
                 if re.search(keyword, message.content, re.IGNORECASE) or re.search(keyword, message.user.nickname, re.IGNORECASE):
                     return True
             return False
