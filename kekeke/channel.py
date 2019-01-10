@@ -480,15 +480,27 @@ class Channel:
     async def automuda(self, message: Message, *args):
         await self.toggleFlag(flag.muda)
 
-    @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n消除所有非成員的訊息')
+
+    @command.command(authonly=True, help='.clearup <人名>\n消除所有該使用者的訊息')
+    async def clearup(self,message:Message, *args):
+        if len(message.metionUsers)>=1:
+            vaildusers: typing.Set[User] = self.redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth")
+            def isValid(m: Message)->bool:
+                return (m.user not in message.metionUsers) or (m.user.ID in vaildusers)
+            await self.resetmessages(isValid)
+
+    @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n【危險】消除所有非成員的訊息')
     async def zawarudo(self, message: Message, *args):
         if args[0] == self.name:
-            self.pauseListen = True
             vaildusers: typing.Set[User] = self.redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth")
-
             def isValid(m: Message)->bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
-            validmessages = list(filter(isValid, self.messages))
+            await self.resetmessages(isValid)
+
+    async def resetmessages(self,vaild):
+        validmessages = list(filter(vaild, self.messages))
+        if len(validmessages)>=1:
+            self.pauseListen = True
             self.pauseMessage = validmessages[-1]
             oldest = validmessages[0]
             if len(validmessages) < 100:
@@ -496,7 +508,6 @@ class Channel:
             medias = self.medias.copy()
 
             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="----------ZA WARUDO----------"), showID=False)
-            # await asyncio.sleep(1)
 
             for media in medias:
                 user = copy.deepcopy(media.user)
@@ -504,7 +515,6 @@ class Channel:
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
                 await asyncio.sleep(0.2)
 
-            # await asyncio.sleep(1)
             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="時間繼續"), showID=False)
             await asyncio.sleep(0.2)
 
