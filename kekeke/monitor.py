@@ -79,19 +79,23 @@ class Monitor(object):
         self._log.info("開始監視 "+self.name)
         await self.bot.subscribe(self.name)
         self.channel: Channel = self.bot.channels[self.name]
-        last_time = await self.GetLastMessageTime()
-        self._log.info("取得 "+self.name+" 的歷史訊息")
-        data = [m for m in self.channel.messages if m.time > last_time]
-        if len(data) > 0:
-            async with self.stdout.typing():
-                await self.SendReport(data)
-            self._log.info("更新了 "+self.name+" 的 "+str(len(data))+" 條訊息")
+        if self.stdout:
+            last_time = await self.GetLastMessageTime()
+            self._log.info("取得 "+self.name+" 的歷史訊息")
+            data = [m for m in self.channel.messages if m.time > last_time]
+            if len(data) > 0:
+                async with self.stdout.typing():
+                    await self.SendReport(data)
+                self._log.info("更新了 "+self.name+" 的 "+str(len(data))+" 條訊息")
+        else:
+            self._log.info(self.name+" 目前為無頭模式")
         self._log.info("開始常駐監聽 "+self.name)
         while self.bot.isSubscribe(self.name):
             m = await self.channel.waitMessage()
             self._log.debug(m)
-            async with self.stdout.typing():
-                await self.SendReport([m])
+            if self.stdout:
+                async with self.stdout.typing():
+                    await self.SendReport([m])
 
     async def Stop(self):
         await self.bot.unSubscribe(self.name)
