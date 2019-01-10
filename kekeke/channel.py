@@ -364,7 +364,6 @@ class Channel:
 
 ############################################commands#######################################
 
-
     @command.command(help=".help\n顯示這個訊息")
     async def help(self, message: Message, *args):
         texts = []
@@ -433,13 +432,17 @@ class Channel:
     @command.command(help=".bind <DiscordID>\n指定一個Discord帳號與目前帳號綁定，用於Discord發話")
     async def bind(self, message: Message, *args):
         if len(args) >= 1:
-            self.redis.hset("kekeke::bot::users::discordid", message.user.ID, args[0])
-            self.redis.hset("discordbot::users::kekekeid", args[0], message.user.ID)
-            if message.user.color:
-                self.redis.hset("discordbot::users::kekekecolor", args[0], message.user.color)
-            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="✔️已綁定到Discord", metionUsers=[message.user]), showID=False)
+            try:
+                kid = int(args[0])
+                self.redis.hset("kekeke::bot::users::discordid", message.user.ID, str(kid))
+                self.redis.hset("discordbot::users::kekekeid", str(kid), message.user.ID)
+                if message.user.color:
+                    self.redis.hset("discordbot::users::kekekecolor", str(kid), message.user.color)
+                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="✔️已綁定到Discord", metionUsers=[message.user]), showID=False)
+            except ValueError:
+                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="❌參數錯誤", metionUsers=[message.user]), showID=False)
 
-    @command.command(help=".member (add/remove) <使用者>\n將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n若不指定add/remove則自動判斷")
+    @command.command(authonly=True, help=".auth (add/remove) <使用者>\n將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n若不指定add/remove則自動判斷")
     async def auth(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
         success = False
