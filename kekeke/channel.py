@@ -492,8 +492,8 @@ class Channel:
                 validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
             medias = self.medias.copy()
 
-            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="ZA WARUDO 時間暫停!"), showID=False)
-            await asyncio.sleep(1)
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="----------ZA WARUDO----------"), showID=False)
+            # await asyncio.sleep(1)
 
             for media in medias:
                 user = copy.deepcopy(media.user)
@@ -501,9 +501,9 @@ class Channel:
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
                 await asyncio.sleep(0.2)
 
-            await asyncio.sleep(1)
+            # await asyncio.sleep(1)
             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="時間繼續"), showID=False)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.2)
 
             for m in validmessages:
                 await self.sendMessage(m, showID=False)
