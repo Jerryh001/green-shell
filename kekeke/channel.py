@@ -117,7 +117,7 @@ class Channel:
         
         data = await self.post(payload=_payload.string)
         if data:
-            data = list(x for x in data[-3] if x[0] != '{')
+            data = list(x for x in data[-3] if x[0] == '{')
             messages: list = Message.loadjsonlist(data)
             if messages:
                 await self.setMessage(messages)
