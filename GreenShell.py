@@ -47,6 +47,11 @@ class DataFile(commands.Converter):
 
 
 @bot.command()
+async def dtime(ctx, time: int):
+    redis.set("kekeke::detecttime", time)
+
+
+@bot.command()
 async def update(ctx, filemessage: DataFile):
     if not filemessage:
         logging.warning("找不到檔案")
@@ -106,7 +111,7 @@ async def _kekeke(ctx: commands.Context):
 
 async def detect():
     try:
-        await Detector(bot.get_channel(483268806072991794)).PeriodRun(30)
+        await Detector(bot.get_channel(483268806072991794)).PeriodRun()
     except:
         logging.error("kekeke首頁監控異常終止")
         await bot.get_channel(483242913807990806).send("kekeke首頁監控異常終止")

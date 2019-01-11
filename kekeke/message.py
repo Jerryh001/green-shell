@@ -31,6 +31,16 @@ class Message:
         self.payload = payload
 
     @staticmethod
+    def loadjsonlist(jsonlist: list)->list:
+        messages: list = list()
+        for json in jsonlist:
+            m = Message.loadjson(json)
+            if(not m or not m.user.ID):
+                continue
+            messages.append(m)
+        return messages
+
+    @staticmethod
     def loadjson(json_str: str)->'Message':
         message = json.loads(json_str)
         mtype: Message.MessageType

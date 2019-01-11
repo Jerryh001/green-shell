@@ -114,18 +114,11 @@ class Channel:
     async def initMessages(self, channel: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLeftMessages"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        messages: list = list()
+        
         data = await self.post(payload=_payload.string)
         if data:
-            data = data[-3]
-            for message_raw in data:
-                if message_raw[0] != '{':
-                    continue
-                m = Message.loadjson(message_raw)
-                if(not m or not m.user.ID):
-                    continue
-                self._log.debug(m)
-                messages.append(m)
+            data = list(x for x in data[-3] if x[0] != '{')
+            messages: list = Message.loadjsonlist(data)
             if messages:
                 await self.setMessage(messages)
             self._log.info("更新歷史訊息成功")
@@ -275,11 +268,11 @@ class Channel:
         if self.redis.sismember(self.redisPerfix+"flags", flag.muda) and message.mtype == Message.MessageType.chat:
             if not self.redis.sismember(self.redisPerfix+"silentUsers", message.user.ID) and self.isForbiddenMessage(message):
                 await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
-            for media in self.medias:
-                if self.redis.sismember(self.redisPerfix+"silentUsers", media.user.ID):
-                    user = copy.deepcopy(media.user)
-                    user.nickname = self.user.nickname
-                    await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
+        for media in self.medias:
+            if self.redis.sismember(self.redisPerfix+"silentUsers", media.user.ID):
+                user = copy.deepcopy(media.user)
+                user.nickname = self.user.nickname
+                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
 
         if message.user != self.user and message.content[0:len(self.commendPrefix)] == self.commendPrefix:
             args = message.content[len(self.commendPrefix):].split()
@@ -484,9 +477,8 @@ class Channel:
     @command.command(authonly=True, help='.clearup <人名>\n消除所有該使用者的訊息')
     async def clearup(self,message:Message, *args):
         if len(message.metionUsers)>=1:
-            vaildusers: typing.Set[User] = self.redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth")
             def isValid(m: Message)->bool:
-                return (m.user not in message.metionUsers) or (m.user.ID in vaildusers)
+                return m.user not in message.metionUsers
             await self.resetmessages(isValid)
 
     @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n【危險】消除所有非成員的訊息')

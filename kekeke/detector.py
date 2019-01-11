@@ -9,8 +9,11 @@ from datetime import datetime, timezone
 
 import aiohttp
 import discord
+import redis as r
 import tzlocal
 from discord.ext import commands
+
+from kekeke import red
 
 
 class DetectDetail(object):
@@ -88,6 +91,7 @@ class Detector(object):
     def __init__(self, stdout):
         self.stdout = stdout
         self._log = logging.getLogger(self.__class__.__name__)
+        self.redis = r.StrictRedis(connection_pool=red.pool())
 
     def KeywordLoad(self):
         dirname = os.getcwd()
@@ -181,7 +185,7 @@ class Detector(object):
             embed.add_field(name=board.name, value=embed_content, inline=False)
         await self.stdout.send(embed=embed)
 
-    async def PeriodRun(self, period: int):
+    async def PeriodRun(self):
         self._log.info("Starting monitor kekeke HP ......")
         while True:
             self._log.debug("Checking kekeke HP ......")
@@ -192,7 +196,12 @@ class Detector(object):
                 self._log.info("kekeke HP updated!")
             else:
                 self._log.debug("kekeke HP has nothing to update")
-            await asyncio.sleep(period)
+            try:
+                await asyncio.sleep(int(self.redis.get("kekeke::detecttime")))
+            except Exception as e:
+                self._log.warning("sleep的時間錯誤:"+str(e))
+                await asyncio.sleep(30)
+
         self._log.info("stopped kekeke HP moniter")
 
 
