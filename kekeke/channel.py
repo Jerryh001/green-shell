@@ -38,7 +38,7 @@ class Channel:
 
     def __init__(self, name: str):
         self.name = name
-        self.user = User("Discord#Bot")
+        self.user = User("綠盾防禦系統#Bot")
         self._log = logging.getLogger(__name__+"@"+self.name)
         self.session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
