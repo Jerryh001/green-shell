@@ -450,7 +450,7 @@ class Channel:
                     self.redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
                 success = True
         result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"認證的使用者"
-        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0].ID]), showID=False)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0]]), showID=False)
 
     @command.command(authonly=True, help=".clear <目前頻道名稱> X\n【危險】送出X條空白訊息\nX最多為100")
     async def clear(self, message: Message, *args):

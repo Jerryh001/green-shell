@@ -82,7 +82,7 @@ class Monitor(object):
         if self.stdout:
             last_time = await self.GetLastMessageTime()
             self._log.info("取得 "+self.name+" 的歷史訊息")
-            data = [m for m in self.channel.messages if m.time > last_time]
+            data = [m for m in self.channel.messages if m.time > last_time] if last_time else self.channel.messages
             if len(data) > 0:
                 async with self.stdout.typing():
                     await self.SendReport(data)
