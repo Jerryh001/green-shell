@@ -62,8 +62,9 @@ class Channel:
                 self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
                 self.ws: aiohttp.ClientWebSocketResponse = await self._session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket", heartbeat=120).__aenter__()
                 break
-            except:
+            except Exception as e:
                 self._log.error("對伺服器建立連線失敗，5秒後重試")
+                self._log.error(e, exc_info=True)
                 self.Close(stop=False)
                 await asyncio.wait(5)
         await self.subscribe()
@@ -114,7 +115,7 @@ class Channel:
     async def initMessages(self, channel: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLeftMessages"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        
+
         data = await self.post(payload=_payload.string)
         if data:
             data = list(x for x in data[-3] if x[0] == '{')
@@ -198,6 +199,8 @@ class Channel:
                         self.redis.hset("discordbot::users::kekekecolor", discordid, user.color)
 
                     if user.ID in self.redis.sunion(self.redisPerfix+"ignores", self.redisGlobalPerfix+"ignores", self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
+                        continue
+                    if not self.messages:
                         continue
                     basemessage = self.messages[-10] if len(self.messages) > 10 else self.messages[0]
                     if not ((user.ID in self.last_send_IDs and self.last_send_IDs[user.ID] >= basemessage.time) or (user.nickname in self.last_send_Nicknames and self.last_send_Nicknames[user.nickname] >= basemessage.time)):
@@ -293,8 +296,8 @@ class Channel:
         }
         if message.user.color:
             message_obj["senderColorToken"] = message.user.color
+        message_obj["payload"]["replyPublicIds"] = []
         if message.metionUsers:
-            message_obj["payload"]["replyPublicIds"] = []
             for muser in message.metionUsers:
                 message_obj["payload"]["replyPublicIds"].append(muser.ID)
         payload = 'SEND\ndestination:/topic/{0}\n\n'.format(self.name)+json.dumps(message_obj, ensure_ascii=False)
@@ -352,16 +355,50 @@ class Channel:
             async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
                 text = json.loads(await r.text())
                 await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user if user else self.user, content=text["url"]), showID=False)
-        os.remove(filepath)
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            self._log.error("刪除檔案失敗")
+            self._log.error(e, exc_info=True)
 
 
 ############################################commands#######################################
+
 
     @command.command(help=".help\n顯示這個訊息")
     async def help(self, message: Message, *args):
         texts = []
         for com in command.commands:
             texts.append(command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
+        await self.sendTextImage("\n".join(texts), message.user)
+
+    @command.command(help=".status\n顯示目前在線上的成員列表")
+    async def status(self, message: Message, *args):
+        texts = []
+        gauth = self.redis.smembers(self.redisGlobalPerfix+"auth")
+        auths = self.redis.smembers(self.redisPerfix+"auth")
+        members = self.redis.smembers(self.redisPerfix+"members")
+        authtext = []
+        membertext = []
+        unknowntext = []
+        for user in self.users:
+            if re.search("#Bot", user.nickname):
+                continue
+            if user.ID in gauth or user.ID in auths:
+                authtext.append("("+user.ID[:5]+")"+user.nickname)
+            elif user.ID in members:
+                membertext.append("("+user.ID[:5]+")"+user.nickname)
+            else:
+                unknowntext.append("("+user.ID[:5]+")"+user.nickname)
+        if authtext:
+            texts.append("認證成員：")
+            texts.extend(authtext)
+        if membertext:
+            texts.append("一般成員：")
+            texts.extend(membertext)
+        if unknowntext:
+            texts.append("未知使用者：")
+            texts.extend(unknowntext)
         await self.sendTextImage("\n".join(texts), message.user)
 
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
@@ -390,23 +427,29 @@ class Channel:
     @command.command(help=".member (add/remove) <使用者>\n將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令\n一般成員不可修改認證成員身分\n若不指定add/remove則自動判斷")
     async def member(self, message: Message, *args):
         ismember = self.redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID)
-        success = False
+        result = ""
+        usertext = "使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname
         if ismember:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
                 self.redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
-                success = True
+                result = "✔️成功將"+usertext+"從一般成員移除"
         else:
             if len(args) == 1 or (len(args) == 2 and args[0] == "add"):
                 if self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID):
                     if self.redis.sismember(self.redisPerfix+"auth", message.user.ID):
                         self.redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
                         self.redis.sadd(self.redisPerfix+"members", message.metionUsers[0].ID)
-                        success = True
+                        result = "✔️成功將"+usertext+"從認證成員變為一般成員"
+                    else:
+                        result = "❌不能將"+usertext+"從認證成員變為一般成員，對方擁有較高的權限"
                 else:
                     self.redis.sadd(self.redisPerfix+"members", message.metionUsers[0].ID)
-                    success = True
-        result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"一般的使用者"
-        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result), showID=False)
+                    result = "✔️成功將"+usertext+"變為一般成員"
+
+        if not result:
+            result = "❌操作錯誤，"+usertext+"維持原身分"
+
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
 
     @command.command(help=".ban <使用者>\n發起封鎖特定使用者投票")
     async def ban(self, message: Message, *args):
@@ -437,20 +480,25 @@ class Channel:
 
     @command.command(authonly=True, help=".auth (add/remove) <使用者>\n將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n若不指定add/remove則自動判斷")
     async def auth(self, message: Message, *args):
-        ismember = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
-        success = False
-        if ismember:
+        isauth = self.redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
+        result = ""
+        usertext = "使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname
+        if isauth:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
                 self.redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
-                success = True
+                result = "✔️成功將"+usertext+"從認證成員移除"
         else:
             if len(args) == 1 or (len(args) == 2 and args[0] == "add"):
                 self.redis.sadd(self.redisPerfix+"auth", message.metionUsers[0].ID)
                 if self.redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID):
                     self.redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
-                success = True
-        result = ("✔️" if success else "❌")+"使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname+("是" if ismember != success else "不是")+"認證的使用者"
-        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0]]), showID=False)
+                    result = "✔️成功將"+usertext+"從一般成員變為認證成員"
+                else:
+                    result = "✔️成功將"+usertext+"變為認證成員"
+        if not result:
+            result = "❌操作錯誤，"+usertext+"維持原身分"
+
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
 
     @command.command(authonly=True, help=".clear <目前頻道名稱> X\n【危險】送出X條空白訊息\nX最多為100")
     async def clear(self, message: Message, *args):
@@ -466,32 +514,30 @@ class Channel:
             user: User = message.metionUsers[0]
             if not self.redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
                 self.redis.sadd(self.redisGlobalPerfix+"silentUsers", user.ID)
-                # await self.remove(message, args[0])
-                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=user.nickname+"你洗再多次也沒用沒用沒用沒用沒用"), showID=False)
 
     @command.command(authonly=True, help='.automuda\n啟用/停用當使用者發送特定關鍵字時，自動進行"muda"指令')
     async def automuda(self, message: Message, *args):
         await self.toggleFlag(flag.muda)
 
-
     @command.command(authonly=True, help='.clearup <人名>\n消除所有該使用者的訊息')
-    async def clearup(self,message:Message, *args):
-        if len(message.metionUsers)>=1:
+    async def clearup(self, message: Message, *args):
+        if len(message.metionUsers) >= 1:
             def isValid(m: Message)->bool:
                 return m.user not in message.metionUsers
             await self.resetmessages(isValid)
 
     @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n【危險】消除所有非成員的訊息')
     async def zawarudo(self, message: Message, *args):
-        if args[0] == self.name:
+        if len(args) >= 1 and args[0] == self.name:
             vaildusers: typing.Set[User] = self.redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth")
+
             def isValid(m: Message)->bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
             await self.resetmessages(isValid)
 
-    async def resetmessages(self,vaild):
+    async def resetmessages(self, vaild):
         validmessages = list(filter(vaild, self.messages))
-        if len(validmessages)>=1:
+        if len(validmessages) >= 1:
             self.pauseListen = True
             self.pauseMessage = validmessages[-1]
             oldest = validmessages[0]
@@ -499,16 +545,10 @@ class Channel:
                 validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
             medias = self.medias.copy()
 
-            #await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="----------ZA WARUDO----------"), showID=False)
-
             for media in medias:
                 user = copy.deepcopy(media.user)
                 user.nickname = self.user.nickname
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
-                #await asyncio.sleep(0.2)
-
-            #await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="時間繼續"), showID=False)
-            #await asyncio.sleep(0.2)
 
             for m in validmessages:
                 await self.sendMessage(m, showID=False)

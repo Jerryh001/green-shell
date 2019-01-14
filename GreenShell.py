@@ -112,8 +112,9 @@ async def _kekeke(ctx: commands.Context):
 async def detect():
     try:
         await Detector(bot.get_channel(483268806072991794)).PeriodRun()
-    except:
+    except Exception as e:
         logging.error("kekeke首頁監控異常終止")
+        logging.error(e, exc_info=True)
         await bot.get_channel(483242913807990806).send("kekeke首頁監控異常終止")
     await bot.get_channel(483242913807990806).send("發生了不可能的kekeke首頁監控正常終止")
 
@@ -122,11 +123,7 @@ async def oversee(name: str):
     global kbot
     if not kbot:
         kbot = KBot()
-    channel = None
-    try:
-        channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
-    except discord.ext.commands.errors.BadArgument:
-        pass
+    channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
     if not channel:
         logging.warning(name+"頻道不存在")
         await bot.get_channel(483242913807990806).send(name+"頻道不存在，使用無頭模式監視")
@@ -141,7 +138,8 @@ async def oversee(name: str):
         logging.info("已停止監視 "+name)
         await bot.get_channel(483242913807990806).send("已停止監視`"+name+"`")
     except Exception as e:
-        logging.error("監視 "+name+" 時發生錯誤:"+str(e))
+        logging.error("監視 "+name+" 時發生錯誤:")
+        logging.error(e, exc_info=True)
         await bot.get_channel(483242913807990806).send("監視`"+name+"`時發生錯誤")
 
 
@@ -169,8 +167,9 @@ async def stop(ctx: commands.Context, channelname: str):
     except KeyError:
         logging.warning(channelname+" 不在監視中")
         await ctx.send("`"+channelname+"`"+"不在監視中")
-    except:
+    except Exception as e:
         logging.error("停止監視 "+channelname+" 失敗")
+        logging.error(e, exc_info=True)
         await ctx.send("停止監視`"+channelname+"`失敗")
 
 

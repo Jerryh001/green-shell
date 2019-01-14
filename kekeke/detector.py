@@ -199,7 +199,8 @@ class Detector(object):
             try:
                 await asyncio.sleep(int(self.redis.get("kekeke::detecttime")))
             except Exception as e:
-                self._log.warning("sleep的時間錯誤:"+str(e))
+                self._log.warning("sleep的時間錯誤:")
+                self._log.error(e, exc_info=True)
                 await asyncio.sleep(30)
 
         self._log.info("stopped kekeke HP moniter")
