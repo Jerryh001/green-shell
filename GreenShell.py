@@ -112,11 +112,11 @@ async def _kekeke(ctx: commands.Context):
 async def detect():
     try:
         await Detector(bot.get_channel(483268806072991794)).PeriodRun()
+        await bot.get_channel(483242913807990806).send("發生了不可能的kekeke首頁監控正常終止")
     except Exception as e:
         logging.error("kekeke首頁監控異常終止")
         logging.error(e, exc_info=True)
         await bot.get_channel(483242913807990806).send("kekeke首頁監控異常終止")
-    await bot.get_channel(483242913807990806).send("發生了不可能的kekeke首頁監控正常終止")
 
 
 async def oversee(name: str):

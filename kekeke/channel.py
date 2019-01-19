@@ -150,13 +150,18 @@ class Channel:
                 if m.mtype == Message.MessageType.population:
                     asyncio.get_event_loop().create_task(self.updateUsers())
                 elif m.mtype == Message.MessageType.vote:
-                    if m.payload["title"] == "__i18n_voteForbidTitle":
-                        if m.payload["votingState"] == "CREATE":
-                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"]))
-                        elif m.payload["votingState"] == "COMPLETE":
+                    if m.payload["votingState"] == "CREATE":
+                        if m.payload["title"] == "__i18n_voteForbidTitle":
+                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"],"__i18n_forbid"))
+                        elif m.payload["title"] == "__i18n_voteBurnTitle":
+                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"],"__i18n_burn"))
+                    elif m.payload["votingState"] == "COMPLETE":
+                        if m.payload["title"] == "__i18n_voteForbidTitle":
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
-                        else:
-                            asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
+                        elif m.payload["title"] == "__i18n_voteBurnTitle":
+                            asyncio.get_event_loop().create_task(self.burnoutCommit(m.payload["votingId"]))
+                        
+                        
         asyncio.get_event_loop().create_task(self.reConnect())
 
     async def post(self, payload, url: str = _square_url, header: dict = _header) -> typing.Dict[str, typing.Any]:
@@ -457,9 +462,20 @@ class Channel:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, target.ID, target.nickname, target.ID])
-        _payload.AddPara("java.lang.String/2004016611", [""], regonly=True)
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
+        _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動封鎖】"], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
+
+    @command.command(help='.burn <使用者>\n發起燒毀特定使用者"全部"KERMA的投票')
+    async def burn(self, message: Message, *args):
+        if len(message.metionUsers)>0:
+            target: User = message.metionUsers[0]
+            _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForBurn"])
+            _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+            _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
+            _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
+            _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動燒毀全部KERMA】"], regonly=True)
+            await self.post(payload=_payload.string, url=self._vote_url)
 
     @command.command(help=".autotalk\n啟用/停用自動發送訊息功能")
     async def autotalk(self, message: Message, *args):
@@ -555,11 +571,11 @@ class Channel:
 
             await self.setMessage(validmessages)
 
-    async def vote(self, voteid: str):
+    async def vote(self, voteid: str,voteoption:str="__i18n_forbid"):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
-        _payload.AddPara("java.util.Set", ["java.util.HashSet/3273092938", "https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "java.lang.String/2004016611", "__i18n_forbid"], regonly=True)
+        _payload.AddPara("java.util.Set", ["java.util.HashSet/3273092938", "https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "java.lang.String/2004016611", voteoption], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
     async def banCommit(self, voteid: str):
@@ -568,6 +584,13 @@ class Channel:
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
         _payload.AddPara("com.liquable.hiroba.gwt.client.vote.ForbidOption/647536008", [0], rawpara=True)
         await self.post(payload=_payload.string, url=self._vote_url)
+
+    async def burnoutCommit(self,voteid:str):
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyBurnByVoting"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
+        for _ in range(10):
+            await self.post(payload=_payload.string, url=self._vote_url)
 
 
 def clip(num: int, a: int, b: int)->int:

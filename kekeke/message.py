@@ -42,7 +42,10 @@ class Message:
 
     @staticmethod
     def loadjson(json_str: str)->'Message':
-        message = json.loads(json_str)
+        try:
+            message = json.loads(json_str)
+        except json.JSONDecodeError:
+            return None
         mtype: Message.MessageType
         try:
             mtype = Message.MessageType(message["eventType"])
