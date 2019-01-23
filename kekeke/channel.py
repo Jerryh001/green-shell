@@ -282,12 +282,18 @@ class Channel:
                 user.nickname = self.user.nickname
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
 
-        if message.user != self.user and message.content[0:len(self.commendPrefix)] == self.commendPrefix:
-            args = message.content[len(self.commendPrefix):].split()
-            if(args[0] in command.commands):
-                asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
-            else:
-                self._log.warning("命令"+args[0]+"不存在")
+        if message.user != self.user:
+            for key in self.redis.smembers(self.redisPerfix+"reactionkeywords"):
+                if re.search(key,message.content):
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=self.redis.srandmember(self.redisPerfix+"reactionkeywords::"+key), metionUsers=[message.user]), showID=False)
+            if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
+                args = message.content[len(self.commendPrefix):].split()
+                if(args[0] in command.commands):
+                    asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
+                else:
+                    self._log.warning("命令"+args[0]+"不存在")
+
+        
 
     async def sendMessage(self, message: Message, *, showID=True, escape=True):
         message_obj = {
