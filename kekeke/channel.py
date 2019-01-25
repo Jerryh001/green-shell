@@ -71,6 +71,7 @@ class Channel:
         await self.updateFlags(True)
         await self.initMessages(self.name)
         await self.updateUsers()
+        asyncio.get_event_loop().create_task(self.showLogo())
         self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
 
     async def Close(self, stop=True):
@@ -168,14 +169,15 @@ class Channel:
         for i in range(3):
             async with self._session.post(url=url, data=payload, headers=header) as r:
                 if r.status != 200:
-                    self._log.warning("<第"+str(i)+"次post失敗> payload="+str(payload)+" url="+url+" header="+str(header))
+                    self._log.warning("<第"+str(i+1)+"次post失敗> payload="+str(payload)+" url="+url+" header="+str(header))
+                    await asyncio.sleep(1)
                 else:
                     text = await r.text()
                     if text[:4] == "//OK":
                         text = text[4:]
                     return json.loads(text)
         return None
-
+    
     async def updateFlags(self, pull=False):
         if pull:
             self.flags = self.redis.smembers(self.redisPerfix+"flags")
@@ -344,9 +346,7 @@ class Channel:
             filepath = os.path.join(os.getcwd(), "data/"+str(attach.id)+attach.filename)
             with open(filepath, 'wb') as f:
                 await attach.save(f)
-            with open(filepath, 'rb') as f:
-                async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
-                    content += json.loads(await r.text())["url"]
+            content += (await self.postImage(filepath))["url"]
             os.remove(filepath)
 
         message = Message(Message.MessageType.chat, content=content, user=user, payload={"discordID": message.author.id})
@@ -362,15 +362,56 @@ class Channel:
         d.text((10, 10), text, fill=(0, 0, 0), font=font)
         filepath = os.path.join(os.getcwd(), "data/image.jpg")
         img.save(filepath)
-        with open(filepath, 'rb') as f:
-            async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
-                text = json.loads(await r.text())
-                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user if user else self.user, content=text["url"]), showID=False)
+        text = await self.postImage(filepath)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user if user else self.user, content=text["url"]), showID=False)
         try:
             os.remove(filepath)
         except Exception as e:
             self._log.error("刪除檔案失敗")
             self._log.error(e, exc_info=True)
+
+    async def postImage(self,filepath:str):
+        with open(filepath, 'rb') as f:
+            async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
+                return json.loads(await r.text())
+
+    async def convertToThumbnail(self,url:str)->object:
+        thumb=await self.postJson({"url":url},url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/store-thumbnail")
+        for k,v in thumb.items():
+            self.redis.hset(self.redisGlobalPerfix+"logothumbnailurl",k,v)
+        self.redis.expire(self.redisGlobalPerfix+"logothumbnailurl",518400)
+        return thumb
+
+    async def updateThumbnail(self,url:str):
+        thumb=self.redis.hgetall(self.redisGlobalPerfix+"logothumbnailurl")
+        if not thumb:
+            thumb=await self.convertToThumbnail(url)
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateSquareThumb"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.square.SquareThumb/3372091550", [int(thumb["height"]),thumb["url"],int(thumb["width"])])
+        await self.post(payload=_payload.string)
+
+    async def showLogo(self):
+        url=self.redis.get(self.redisGlobalPerfix+"logourl")
+        if not url:
+            logopath=os.path.join(os.getcwd(), "green.png")
+            image=await self.postImage(logopath)
+            url=image["url"]
+            self.redis.set(self.redisGlobalPerfix+"logourl",url,ex=518400)
+        await self.updateThumbnail(url)
+
+    async def postJson(self, json_, url: str = _square_url, header: dict = {"content-type": "application/json"}) -> typing.Dict[str, typing.Any]:
+        for i in range(3):
+            async with self._session.post(url=url, json=json_, headers=header) as r:
+                if r.status != 200:
+                    self._log.warning("<第"+str(i+1)+"次post失敗> payload="+str(json_)+" url="+url+" header="+str(header))
+                    await asyncio.sleep(1)
+                else:
+                    text = await r.text()
+                    if text[:4] == "//OK":
+                        text = text[4:]
+                    return json.loads(text)
+        return None
 
 
 ############################################commands#######################################

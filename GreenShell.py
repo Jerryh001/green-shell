@@ -11,6 +11,7 @@ import boto3
 import discord
 import redis as r
 from discord.ext import commands
+
 from kekeke import red
 from kekeke.bot import Bot as KBot
 from kekeke.detector import Detector
