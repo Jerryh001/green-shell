@@ -36,9 +36,9 @@ class Channel:
 
     redisGlobalPerfix = "kekeke::bot::global::"
 
-    def __init__(self, name: str):
+    def __init__(self, name: str,trainingmode=False):
         self.name = name
-        self.user = User("綠盾防禦系統#Bot")
+        self.user = User(("小小綠盾" if trainingmode else "綠盾防禦系統")+"#Bot")
         self._log = logging.getLogger(__name__+"@"+self.name)
         self.session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
@@ -55,6 +55,8 @@ class Channel:
         self.pauseListen = False
         self.pauseMessage = Message()
         self.closed = False
+        self.ontraining=trainingmode
+        self.GUID=self.getGUID()
 
     async def initial(self):
         while True:
@@ -68,21 +70,24 @@ class Channel:
                 self.Close(stop=False)
                 await asyncio.wait(5)
         await self.subscribe()
-        await self.updateFlags(True)
-        await self.initMessages(self.name)
-        await self.updateUsers()
+        if not self.ontraining:
+            await self.updateFlags(True)
+            await self.initMessages(self.name)
+            await self.updateUsers()
         asyncio.get_event_loop().create_task(self.showLogo())
         self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
 
     async def Close(self, stop=True):
         if stop:
             self.closed = True
+            self.redis.smove("kekeke::bot::training::GUIDs::using","kekeke::bot::training::GUIDs",self.GUID)
         if self.connectEvents and not self.connectEvents.done():
             self.connectEvents.cancel()
         if self.ws and not self.ws.closed:
             await self.ws.close()
         if self._session and not self._session.closed:
             await self._session.close()
+        
 
     async def reConnect(self):
         await self.Close(stop=False)
@@ -96,10 +101,20 @@ class Channel:
             await asyncio.sleep(300)
         asyncio.get_event_loop().create_task(self.reConnect())
 
+    def getGUID(self)->str or None:
+        if self.ontraining:
+            while True:
+                guid=self.redis.srandmember("kekeke::bot::training::GUIDs")
+                if not guid:
+                    return None
+                if self.redis.smove("kekeke::bot::training::GUIDs","kekeke::bot::training::GUIDs::using",guid):
+                    return guid
+        else:
+            return self.redis.get(self.redisPerfix+"botGUID")
+
     async def subscribe(self):
-        GUID = self.redis.get(self.redisPerfix+"botGUID")
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [GUID if GUID else None, None, "com.liquable.gwt.transport.client.Destination/2061503238", "/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [self.GUID if self.GUID else None, None, "com.liquable.gwt.transport.client.Destination/2061503238", "/topic/{0}".format(self.name)])
         while True:
             data = await self.post(payload=_payload.string)
             if data:
@@ -107,7 +122,12 @@ class Channel:
             else:
                 await asyncio.sleep(5)
         data = data[-3]
-        self.redis.set(self.redisPerfix+"botGUID", data[1])
+        if not self.GUID:
+            self.GUID=data[1]
+            if self.ontraining:
+                self.redis.sadd("kekeke::bot::training::GUIDs::using",self.GUID)
+            else:
+                self.redis.set(self.redisPerfix+"botGUID", self.GUID)
         self.user.ID = data[-1]
         await self.ws.send_str('CONNECT\nlogin:'+json.dumps({"accessToken": data[2], "nickname": self.user.nickname}))
         await self.ws.send_str('SUBSCRIBE\ndestination:/topic/{0}'.format(self.name))
@@ -130,15 +150,19 @@ class Channel:
     async def listen(self):
         while not self.ws.closed:
             msg = await self.ws.receive()
+            if self.ontraining:
+                continue
             if msg.type != aiohttp.WSMsgType.TEXT:
                 continue
             self._log.debug(msg.data)
             msg_list = list(filter(None, msg.data.split('\n')))
             if msg_list[0] != "MESSAGE":
+                self._log.info("UNKNOWN WS MESSAGE TYPE:\n"+msg.data)
                 continue
             publisher = msg_list[2][len("publisher:"):]
             m = Message.loadjson(msg_list[3])
             if not m:
+                self._log.info("GET EMPTY MESSAGE:\n"+msg.data)
                 continue
             if self.pauseListen:
                 if m == self.pauseMessage:

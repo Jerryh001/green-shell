@@ -86,6 +86,10 @@ async def on_ready():
     bot.loop.create_task(detect())
     for channelname in redis.smembers("discordbot::overseechannels"):
         bot.loop.create_task(oversee(channelname))
+    try:
+        bot.loop.create_task(train(int(redis.get("kekeke::bot::training::number"))))
+    except ValueError:
+        pass
 
 
 @bot.event
@@ -102,6 +106,17 @@ async def on_message(message: discord.Message):
         await message.delete()
     else:
         await bot.process_commands(message)
+
+@bot.command(name="train")
+async def _train(ctx: commands.Context,num:int):
+    redis.set("kekeke::bot::training::number",num)
+    bot.loop.create_task(train(num))
+
+async def train(num:int):
+    global kbot
+    if not kbot:
+        kbot = KBot()
+    await kbot.train(num)
 
 
 @bot.command(name="kekeke")
