@@ -39,7 +39,7 @@ class Channel:
     def __init__(self, name: str, trainingmode=False):
         self.name = name
         self.user = User(("小小綠盾" if trainingmode else "綠盾防禦系統")+"#Bot")
-        self._log = logging.getLogger((__name__+"#training")if trainingmode else (__name__+"@"+self.name))
+        self._log = logging.getLogger((__name__+"@"+self.name))
         self.session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
         self.messages = list()
@@ -71,7 +71,9 @@ class Channel:
                 self.Close(stop=False)
                 await asyncio.wait(5)
         await self.subscribe()
-        if not self.ontraining:
+        if self.ontraining:
+            self._log = logging.getLogger((__name__+"#"+self.GUID[:8]))
+        else:
             await self.updateFlags(True)
             await self.initMessages(self.name)
             await self.updateUsers()
@@ -170,12 +172,12 @@ class Channel:
             self._log.debug(msg.data)
             msg_list = list(filter(None, msg.data.split('\n')))
             if msg_list[0] != "MESSAGE":
-                self._log.info("UNKNOWN WS MESSAGE TYPE:\n"+msg.data)
+                self._log.info("ignored WS message type:\n"+msg.data)
                 continue
             publisher = msg_list[2][len("publisher:"):]
             m = Message.loadjson(msg_list[3])
             if not m:
-                self._log.info("GET EMPTY MESSAGE:\n"+msg.data)
+                self._log.warning("can't decode message:\n"+msg.data)
                 continue
             if self.pauseListen:
                 if m == self.pauseMessage:

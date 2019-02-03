@@ -21,7 +21,7 @@ class Message:
         other = ""
         population = "NO_OF_CROWD_MESSAGE"
 
-    def __init__(self, mtype: MessageType = MessageType.other, time: datetime = None, user: User = User(), content: str = "", url: str = "", metionUsers: list = [], payload: dict = dict()):
+    def __init__(self, mtype: MessageType = MessageType.chat, time: datetime = None, user: User = User(), content: str = "", url: str = "", metionUsers: list = [], payload: dict = dict()):
         self.mtype = mtype
         self.time = time if time else tzlocal.get_localzone().localize(datetime.now())
         self.user = user
