@@ -36,10 +36,10 @@ class Channel:
 
     redisGlobalPerfix = "kekeke::bot::global::"
 
-    def __init__(self, name: str,trainingmode=False):
+    def __init__(self, name: str, trainingmode=False):
         self.name = name
         self.user = User(("小小綠盾" if trainingmode else "綠盾防禦系統")+"#Bot")
-        self._log = logging.getLogger(__name__+"@"+self.name)
+        self._log = logging.getLogger((__name__+"#training")if trainingmode else (__name__+"@"+self.name))
         self.session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
         self.messages = list()
@@ -55,8 +55,9 @@ class Channel:
         self.pauseListen = False
         self.pauseMessage = Message()
         self.closed = False
-        self.ontraining=trainingmode
-        self.GUID=self.getGUID()
+        self.ontraining = trainingmode
+        self.GUID = self.getGUID()
+        self.kerma = 0
 
     async def initial(self):
         while True:
@@ -80,14 +81,13 @@ class Channel:
     async def Close(self, stop=True):
         if stop:
             self.closed = True
-            self.redis.smove("kekeke::bot::training::GUIDs::using","kekeke::bot::training::GUIDs",self.GUID)
+            self.redis.smove("kekeke::bot::training::GUIDs::using", "kekeke::bot::training::GUIDs", self.GUID)
         if self.connectEvents and not self.connectEvents.done():
             self.connectEvents.cancel()
         if self.ws and not self.ws.closed:
             await self.ws.close()
         if self._session and not self._session.closed:
             await self._session.close()
-        
 
     async def reConnect(self):
         await self.Close(stop=False)
@@ -95,19 +95,32 @@ class Channel:
             asyncio.get_event_loop().create_task(self.initial())
 
     async def keepAlive(self):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "B2BDD9C0DA93926EAB57F7F9D7B941D3", "com.liquable.hiroba.gwt.client.account.IGwtAccountService", "tryExtendsKerma"])
         while not self._session.closed:
-            await self.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/accountService")
+            await self.updateKerma()
+            if self.ontraining and self.kerma > 80:
+                self.redis.smove("kekeke::bot::training::GUIDs::using", "kekeke::bot::GUIDpool", self.GUID)
+                self._log.info("GUID:"+self.GUID+"的KERMA已>80，尋找新GUID")
+                self.GUID = self.getGUID()
+                break
             await asyncio.sleep(300)
         asyncio.get_event_loop().create_task(self.reConnect())
 
-    def getGUID(self)->str or None:
+    async def updateKerma(self):
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "0C66C7C6100D68542CF7FADBCA36808D", "com.liquable.hiroba.gwt.client.anonymous.IGwtAnonymousService", "tryExtendsKerma"])
+        _payload.AddPara("java.lang.String/2004016611", [self.GUID], regonly=True)
+        j = await self.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/anonymousService")
+        kerma = int(j[0])
+        if self.kerma != kerma:
+            self._log.info("kerma:"+str(self.kerma)+"->"+str(kerma))
+        self.kerma = kerma
+
+    def getGUID(self) -> str or None:
         if self.ontraining:
             while True:
-                guid=self.redis.srandmember("kekeke::bot::training::GUIDs")
+                guid = self.redis.srandmember("kekeke::bot::training::GUIDs")
                 if not guid:
                     return None
-                if self.redis.smove("kekeke::bot::training::GUIDs","kekeke::bot::training::GUIDs::using",guid):
+                if self.redis.smove("kekeke::bot::training::GUIDs", "kekeke::bot::training::GUIDs::using", guid):
                     return guid
         else:
             return self.redis.get(self.redisPerfix+"botGUID")
@@ -123,9 +136,9 @@ class Channel:
                 await asyncio.sleep(5)
         data = data[-3]
         if not self.GUID:
-            self.GUID=data[1]
+            self.GUID = data[1]
             if self.ontraining:
-                self.redis.sadd("kekeke::bot::training::GUIDs::using",self.GUID)
+                self.redis.sadd("kekeke::bot::training::GUIDs::using", self.GUID)
             else:
                 self.redis.set(self.redisPerfix+"botGUID", self.GUID)
         self.user.ID = data[-1]
@@ -177,16 +190,15 @@ class Channel:
                 elif m.mtype == Message.MessageType.vote:
                     if m.payload["votingState"] == "CREATE":
                         if m.payload["title"] == "__i18n_voteForbidTitle":
-                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"],"__i18n_forbid"))
+                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"], "__i18n_forbid"))
                         elif m.payload["title"] == "__i18n_voteBurnTitle":
-                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"],"__i18n_burn"))
+                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"], "__i18n_burn"))
                     elif m.payload["votingState"] == "COMPLETE":
                         if m.payload["title"] == "__i18n_voteForbidTitle":
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
                         elif m.payload["title"] == "__i18n_voteBurnTitle":
                             asyncio.get_event_loop().create_task(self.burnoutCommit(m.payload["votingId"]))
-                        
-                        
+
         asyncio.get_event_loop().create_task(self.reConnect())
 
     async def post(self, payload, url: str = _square_url, header: dict = _header) -> typing.Dict[str, typing.Any]:
@@ -201,7 +213,7 @@ class Channel:
                         text = text[4:]
                     return json.loads(text)
         return None
-    
+
     async def updateFlags(self, pull=False):
         if pull:
             self.flags = self.redis.smembers(self.redisPerfix+"flags")
@@ -210,7 +222,7 @@ class Channel:
             self.redis.sadd(self.redisPerfix+"flags", self.flags)
         await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
-    async def updateUsers(self)->typing.Set[User]:
+    async def updateUsers(self) -> typing.Set[User]:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         j = await self.post(payload=_payload.string)
@@ -244,7 +256,7 @@ class Channel:
 
             return joined
 
-    def isNotWelcome(self, user: User)->bool:
+    def isNotWelcome(self, user: User) -> bool:
         keywords = self._notwelcomes.json
         if user.ID in keywords["ID"]:
             return True
@@ -282,7 +294,7 @@ class Channel:
                 else:
                     self.medias[media] = self.medias[media]+1 if media in self.medias else 1
 
-    def isForbiddenMessage(self, message: Message)->bool:
+    def isForbiddenMessage(self, message: Message) -> bool:
         if self.redis.sismember(self.redisPerfix+"auth", message.user.ID) or self.redis.sismember(self.redisGlobalPerfix+"auth", message.user.ID):
             return False
         else:
@@ -310,7 +322,7 @@ class Channel:
 
         if message.user != self.user:
             for key in self.redis.smembers(self.redisPerfix+"reactionkeywords"):
-                if re.search(key,message.content):
+                if re.search(key, message.content):
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=self.redis.srandmember(self.redisPerfix+"reactionkeywords::"+key), metionUsers=[message.user]), showID=False)
             if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
                 args = message.content[len(self.commendPrefix):].split()
@@ -318,8 +330,6 @@ class Channel:
                     asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
                 else:
                     self._log.warning("命令"+args[0]+"不存在")
-
-        
 
     async def sendMessage(self, message: Message, *, showID=True, escape=True):
         message_obj = {
@@ -340,7 +350,7 @@ class Channel:
         payload = 'SEND\ndestination:/topic/{0}\n\n'.format(self.name)+json.dumps(message_obj, ensure_ascii=False)
         await self.ws.send_str(payload)
 
-    async def waitMessage(self)->Message:
+    async def waitMessage(self) -> Message:
         while self.message_queue.qsize() < 1:
             await asyncio.sleep(0)
         return self.message_queue.get()
@@ -394,34 +404,34 @@ class Channel:
             self._log.error("刪除檔案失敗")
             self._log.error(e, exc_info=True)
 
-    async def postImage(self,filepath:str):
+    async def postImage(self, filepath: str):
         with open(filepath, 'rb') as f:
             async with self._session.post(url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/upload-media", data={'file': f}) as r:
                 return json.loads(await r.text())
 
-    async def convertToThumbnail(self,url:str)->object:
-        thumb=await self.postJson({"url":url},url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/store-thumbnail")
-        for k,v in thumb.items():
-            self.redis.hset(self.redisGlobalPerfix+"logothumbnailurl",k,v)
-        self.redis.expire(self.redisGlobalPerfix+"logothumbnailurl",518400)
+    async def convertToThumbnail(self, url: str) -> object:
+        thumb = await self.postJson({"url": url}, url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/store-thumbnail")
+        for k, v in thumb.items():
+            self.redis.hset(self.redisGlobalPerfix+"logothumbnailurl", k, v)
+        self.redis.expire(self.redisGlobalPerfix+"logothumbnailurl", 518400)
         return thumb
 
-    async def updateThumbnail(self,url:str):
-        thumb=self.redis.hgetall(self.redisGlobalPerfix+"logothumbnailurl")
+    async def updateThumbnail(self, url: str):
+        thumb = self.redis.hgetall(self.redisGlobalPerfix+"logothumbnailurl")
         if not thumb:
-            thumb=await self.convertToThumbnail(url)
+            thumb = await self.convertToThumbnail(url)
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateSquareThumb"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.square.SquareThumb/3372091550", [int(thumb["height"]),thumb["url"],int(thumb["width"])])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.square.SquareThumb/3372091550", [int(thumb["height"]), thumb["url"], int(thumb["width"])])
         await self.post(payload=_payload.string)
 
     async def showLogo(self):
-        url=self.redis.get(self.redisGlobalPerfix+"logourl")
+        url = self.redis.get(self.redisGlobalPerfix+"logourl")
         if not url:
-            logopath=os.path.join(os.getcwd(), "green.png")
-            image=await self.postImage(logopath)
-            url=image["url"]
-            self.redis.set(self.redisGlobalPerfix+"logourl",url,ex=518400)
+            logopath = os.path.join(os.getcwd(), "green.png")
+            image = await self.postImage(logopath)
+            url = image["url"]
+            self.redis.set(self.redisGlobalPerfix+"logourl", url, ex=518400)
         await self.updateThumbnail(url)
 
     async def postJson(self, json_, url: str = _square_url, header: dict = {"content-type": "application/json"}) -> typing.Dict[str, typing.Any]:
@@ -439,7 +449,6 @@ class Channel:
 
 
 ############################################commands#######################################
-
 
     @command.command(help=".help\n顯示這個訊息")
     async def help(self, message: Message, *args):
@@ -539,7 +548,7 @@ class Channel:
 
     @command.command(help='.burn <使用者>\n發起燒毀特定使用者"全部"KERMA的投票')
     async def burn(self, message: Message, *args):
-        if len(message.metionUsers)>0:
+        if len(message.metionUsers) > 0:
             target: User = message.metionUsers[0]
             _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForBurn"])
             _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
@@ -609,7 +618,7 @@ class Channel:
     @command.command(authonly=True, help='.clearup <人名>\n消除所有該使用者的訊息')
     async def clearup(self, message: Message, *args):
         if len(message.metionUsers) >= 1:
-            def isValid(m: Message)->bool:
+            def isValid(m: Message) -> bool:
                 return m.user not in message.metionUsers
             await self.resetmessages(isValid)
 
@@ -618,7 +627,7 @@ class Channel:
         if len(args) >= 1 and args[0] == self.name:
             vaildusers: typing.Set[User] = self.redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth")
 
-            def isValid(m: Message)->bool:
+            def isValid(m: Message) -> bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
             await self.resetmessages(isValid)
 
@@ -642,7 +651,7 @@ class Channel:
 
             await self.setMessage(validmessages)
 
-    async def vote(self, voteid: str,voteoption:str="__i18n_forbid"):
+    async def vote(self, voteid: str, voteoption: str = "__i18n_forbid"):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
@@ -656,7 +665,7 @@ class Channel:
         _payload.AddPara("com.liquable.hiroba.gwt.client.vote.ForbidOption/647536008", [0], rawpara=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
-    async def burnoutCommit(self,voteid:str):
+    async def burnoutCommit(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyBurnByVoting"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
@@ -664,5 +673,5 @@ class Channel:
             await self.post(payload=_payload.string, url=self._vote_url)
 
 
-def clip(num: int, a: int, b: int)->int:
+def clip(num: int, a: int, b: int) -> int:
     return min(max(num, a), b)
