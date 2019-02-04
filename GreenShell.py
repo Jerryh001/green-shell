@@ -134,16 +134,22 @@ async def detect():
         await bot.get_channel(483242913807990806).send("kekeke首頁監控異常終止")
 
 
-async def oversee(name: str):
+async def oversee(name: str,defender=False):
     global kbot
     if not kbot:
         kbot = KBot()
-    channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
-    if not channel:
-        logging.warning(name+"頻道不存在")
-        await bot.get_channel(483242913807990806).send(name+"頻道不存在，使用無頭模式監視")
-    overseeing_list[name] = bot.loop.create_task(Monitor(name, channel, kbot).Oversee())
-    redis.sadd("discordbot::overseechannels", name)
+
+    if defender:
+        logging.info("對"+name+"進行防禦")
+        await bot.get_channel(483242913807990806).send("對`"+name+"`進行防禦")
+        overseeing_list[name] = bot.loop.create_task(Monitor(name, None, kbot).Oversee(True))
+    else:
+        channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
+        if not channel:
+            logging.warning(name+"頻道不存在")
+            await bot.get_channel(483242913807990806).send(name+"頻道不存在，使用無頭模式監視")
+        overseeing_list[name] = bot.loop.create_task(Monitor(name, channel, kbot).Oversee())
+        redis.sadd("discordbot::overseechannels", name)
     try:
         await overseeing_list[name]
     except futures.CancelledError:
@@ -158,9 +164,13 @@ async def oversee(name: str):
         await bot.get_channel(483242913807990806).send("監視`"+name+"`時發生錯誤")
 
 
-@bot.command(aliases=["o", "oversee"])
+@bot.command(name="oversee",aliases=["o"])
 async def _oversee(ctx: commands.Context, *, channelname: str):
     bot.loop.create_task(oversee(channelname))
+
+@bot.command(aliases=["d"])
+async def defend(ctx: commands.Context, *, channelname: str):
+    bot.loop.create_task(oversee(channelname,True))
 
 
 @_oversee.before_invoke

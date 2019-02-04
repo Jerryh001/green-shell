@@ -11,6 +11,7 @@ import re
 import time
 import typing
 from datetime import datetime
+
 from queue import Queue
 
 import aiohttp
@@ -28,6 +29,12 @@ from .user import User
 
 
 class Channel:
+    from enum import Enum
+    class BotType(Enum):
+        training = 0
+        observer = 1
+        defender = 2
+
     _notwelcomes = JsonFile(os.path.join(os.getcwd(), "data/keyword.json"))
     _square_url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
     _vote_url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/voteService"
@@ -36,9 +43,10 @@ class Channel:
 
     redisGlobalPerfix = "kekeke::bot::global::"
 
-    def __init__(self, name: str, trainingmode=False):
+    def __init__(self, name: str, mode:BotType=BotType.observer):
+        self.mode = mode
         self.name = name
-        self.user = User(("小小綠盾" if trainingmode else "綠盾防禦系統")+"#Bot")
+        self.user = User(("小小綠盾" if self.mode==self.BotType.training else "綠盾防禦系統")+"#Bot")
         self._log = logging.getLogger((__name__+"@"+self.name))
         self.session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
@@ -55,11 +63,13 @@ class Channel:
         self.pauseListen = False
         self.pauseMessage = Message()
         self.closed = False
-        self.ontraining = trainingmode
         self.GUID = self.getGUID()
         self.kerma = 0
+        
 
     async def initial(self):
+        if self.mode==self.BotType.training:
+            self._log = logging.getLogger((__name__+"#"+self.GUID[:8]))
         while True:
             try:
                 self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
@@ -71,13 +81,13 @@ class Channel:
                 self.Close(stop=False)
                 await asyncio.wait(5)
         await self.subscribe()
-        if self.ontraining:
-            self._log = logging.getLogger((__name__+"#"+self.GUID[:8]))
-        else:
+        
+        if self.mode!=self.BotType.training:
             await self.updateFlags(True)
             await self.initMessages(self.name)
             await self.updateUsers()
-        asyncio.get_event_loop().create_task(self.showLogo())
+            asyncio.get_event_loop().create_task(self.showLogo())
+        
         self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
 
     async def Close(self, stop=True):
@@ -99,9 +109,9 @@ class Channel:
     async def keepAlive(self):
         while not self._session.closed:
             await self.updateKerma()
-            if self.ontraining and self.kerma > 80:
+            if self.mode==self.BotType.training and self.kerma > 80:
                 self.redis.smove("kekeke::bot::training::GUIDs::using", "kekeke::bot::GUIDpool", self.GUID)
-                self._log.info("GUID:"+self.GUID+"的KERMA已>80，尋找新GUID")
+                self._log.info("GUID:"+self.GUID+"的KERMA已>80，尋找新GUID並重新連線")
                 self.GUID = self.getGUID()
                 break
             await asyncio.sleep(300)
@@ -113,16 +123,26 @@ class Channel:
         j = await self.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/anonymousService")
         kerma = int(j[0])
         if self.kerma != kerma:
-            self._log.info("kerma:"+str(self.kerma)+"->"+str(kerma))
-        self.kerma = kerma
+            if self.kerma > kerma:
+                self._log.info("kerma減少了:"+str(self.kerma)+"->"+str(kerma))
+            self.kerma = kerma
+            if self.mode!=self.BotType.observer:
+                await self.updateUsername()
 
     def getGUID(self) -> str or None:
-        if self.ontraining:
+        if self.mode==self.BotType.training:
             while True:
                 guid = self.redis.srandmember("kekeke::bot::training::GUIDs")
                 if not guid:
                     return None
                 if self.redis.smove("kekeke::bot::training::GUIDs", "kekeke::bot::training::GUIDs::using", guid):
+                    return guid
+        elif self.mode==self.BotType.defender:
+            while True:
+                guid = self.redis.srandmember("kekeke::bot::GUIDpool")
+                if not guid:
+                    return None
+                if self.redis.smove("kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool::using", guid):
                     return guid
         else:
             return self.redis.get(self.redisPerfix+"botGUID")
@@ -139,9 +159,11 @@ class Channel:
         data = data[-3]
         if not self.GUID:
             self.GUID = data[1]
-            if self.ontraining:
+            if self.mode==self.BotType.training:
                 self.redis.sadd("kekeke::bot::training::GUIDs::using", self.GUID)
             else:
+                if self.mode==self.BotType.defender:
+                    self._log.error("沒有足夠Kerma的GUID可用，隨便創建一個")
                 self.redis.set(self.redisPerfix+"botGUID", self.GUID)
         self.user.ID = data[-1]
         await self.ws.send_str('CONNECT\nlogin:'+json.dumps({"accessToken": data[2], "nickname": self.user.nickname}))
@@ -165,7 +187,7 @@ class Channel:
     async def listen(self):
         while not self.ws.closed:
             msg = await self.ws.receive()
-            if self.ontraining:
+            if self.mode==self.BotType.training:
                 continue
             if msg.type != aiohttp.WSMsgType.TEXT:
                 continue
@@ -216,13 +238,20 @@ class Channel:
                     return json.loads(text)
         return None
 
+    async def updateUsername(self):
+        newname=self.user.nickname
+        if self.mode!=self.BotType.observer:
+            newname+="({0})".format(self.kerma)
+        newname!="".join(self.flags)
+        await self.rename(Message(user=self.user), newname)
+
     async def updateFlags(self, pull=False):
         if pull:
             self.flags = self.redis.smembers(self.redisPerfix+"flags")
         else:
             self.redis.delete(self.redisPerfix+"flags")
             self.redis.sadd(self.redisPerfix+"flags", self.flags)
-        await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
+        await self.updateUsername()
 
     async def updateUsers(self) -> typing.Set[User]:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
@@ -363,7 +392,6 @@ class Channel:
         else:
             self.redis.sadd(self.redisPerfix+"flags", flag)
         await self.updateFlags(pull=True)
-        await self.rename(Message(user=self.user), self.user.nickname+"".join(self.flags))
 
     async def anonSend(self, message: discord.Message):
         user = copy.deepcopy(self.user)

@@ -75,9 +75,9 @@ class Monitor(object):
         except:
             return tzlocal.get_localzone().localize(datetime.min)
 
-    async def Oversee(self):
+    async def Oversee(self,defender=False):
         self._log.info("開始監視 "+self.name)
-        await self.bot.subscribe(self.name)
+        await self.bot.subscribe(self.name,defender)
         self.channel: Channel = self.bot.channels[self.name]
         if self.stdout:
             last_time = await self.GetLastMessageTime()
@@ -87,15 +87,15 @@ class Monitor(object):
                 async with self.stdout.typing():
                     await self.SendReport(data)
                 self._log.info("更新了 "+self.name+" 的 "+str(len(data))+" 條訊息")
-        else:
-            self._log.info(self.name+" 目前為無頭模式")
-        self._log.info("開始常駐監聽 "+self.name)
-        while self.bot.isSubscribe(self.name):
-            m = await self.channel.waitMessage()
-            self._log.debug(m)
-            if self.stdout:
+            self._log.info("開始常駐監聽 "+self.name)
+            while self.bot.isSubscribe(self.name):
+                m = await self.channel.waitMessage()
+                self._log.debug(m)
                 async with self.stdout.typing():
                     await self.SendReport([m])
+        else:
+            self._log.info(self.name+" 目前為無頭模式")
+        
 
     async def Stop(self):
         await self.bot.unSubscribe(self.name)
