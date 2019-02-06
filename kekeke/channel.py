@@ -94,7 +94,10 @@ class Channel:
     async def Close(self, stop=True):
         if stop:
             self.closed = True
-            self.redis.smove("kekeke::bot::training::GUIDs::using", "kekeke::bot::training::GUIDs", self.GUID)
+            if self.mode==self.BotType.training:
+                self.redis.smove("kekeke::bot::training::GUIDs::using", "kekeke::bot::training::GUIDs", self.GUID)
+            elif self.mode==self.BotType.defender:
+                self.redis.smove("kekeke::bot::GUIDpool::using", "kekeke::bot::GUIDpool", self.GUID)
         if self.connectEvents and not self.connectEvents.done():
             self.connectEvents.cancel()
         if self.ws and not self.ws.closed:

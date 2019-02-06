@@ -83,6 +83,7 @@ async def on_ready():
     await bot.get_channel(483242913807990806).send(bot.user.name+"已上線"+bot.command_prefix)
     if os.getenv("DISCORD_PREFIX") != ".":
         return
+    redis.sunionstore("kekeke::bot::GUIDpool","kekeke::bot::GUIDpool","kekeke::bot::GUIDpool::using")
     bot.loop.create_task(detect())
     for channelname in redis.smembers("discordbot::overseechannels"):
         bot.loop.create_task(oversee(channelname))
