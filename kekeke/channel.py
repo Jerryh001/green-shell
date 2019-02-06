@@ -30,6 +30,7 @@ from .user import User
 
 class Channel:
     from enum import Enum
+
     class BotType(Enum):
         training = 0
         observer = 1
@@ -43,10 +44,10 @@ class Channel:
 
     redisGlobalPerfix = "kekeke::bot::global::"
 
-    def __init__(self, name: str, mode:BotType=BotType.observer):
+    def __init__(self, name: str, mode: BotType = BotType.observer):
         self.mode = mode
         self.name = name
-        self.user = User(("小小綠盾" if self.mode==self.BotType.training else "綠盾防禦系統")+"#Bot")
+        self.user = User(("小小綠盾" if self.mode == self.BotType.training else "綠盾防禦系統")+"#Bot")
         self._log = logging.getLogger((__name__+"@"+self.name))
         self.session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
@@ -65,10 +66,9 @@ class Channel:
         self.closed = False
         self.GUID = self.getGUID()
         self.kerma = 0
-        
 
     async def initial(self):
-        if self.mode==self.BotType.training:
+        if self.mode == self.BotType.training:
             self._log = logging.getLogger((__name__+"#"+self.GUID[:8]))
         while True:
             try:
@@ -81,13 +81,13 @@ class Channel:
                 self.Close(stop=False)
                 await asyncio.wait(5)
         await self.subscribe()
-        
-        if self.mode!=self.BotType.training:
+
+        if self.mode != self.BotType.training:
             await self.updateFlags(True)
             await self.initMessages(self.name)
             await self.updateUsers()
             asyncio.get_event_loop().create_task(self.showLogo())
-        
+
         self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
 
     async def Close(self, stop=True):
@@ -109,9 +109,9 @@ class Channel:
     async def keepAlive(self):
         while not self._session.closed:
             await self.updateKerma()
-            if self.mode==self.BotType.training and self.kerma > 80:
+            if self.mode == self.BotType.training and self.kerma >= 80:
                 self.redis.smove("kekeke::bot::training::GUIDs::using", "kekeke::bot::GUIDpool", self.GUID)
-                self._log.info("GUID:"+self.GUID+"的KERMA已>80，尋找新GUID並重新連線")
+                self._log.info("GUID:"+self.GUID+"的KERMA已達80，尋找新GUID並重新連線")
                 self.GUID = self.getGUID()
                 break
             await asyncio.sleep(300)
@@ -126,18 +126,18 @@ class Channel:
             if self.kerma > kerma:
                 self._log.info("kerma減少了:"+str(self.kerma)+"->"+str(kerma))
             self.kerma = kerma
-            if self.mode!=self.BotType.observer:
+            if self.mode != self.BotType.observer:
                 await self.updateUsername()
 
     def getGUID(self) -> str or None:
-        if self.mode==self.BotType.training:
+        if self.mode == self.BotType.training:
             while True:
                 guid = self.redis.srandmember("kekeke::bot::training::GUIDs")
                 if not guid:
                     return None
                 if self.redis.smove("kekeke::bot::training::GUIDs", "kekeke::bot::training::GUIDs::using", guid):
                     return guid
-        elif self.mode==self.BotType.defender:
+        elif self.mode == self.BotType.defender:
             while True:
                 guid = self.redis.srandmember("kekeke::bot::GUIDpool")
                 if not guid:
@@ -159,10 +159,10 @@ class Channel:
         data = data[-3]
         if not self.GUID:
             self.GUID = data[1]
-            if self.mode==self.BotType.training:
+            if self.mode == self.BotType.training:
                 self.redis.sadd("kekeke::bot::training::GUIDs::using", self.GUID)
             else:
-                if self.mode==self.BotType.defender:
+                if self.mode == self.BotType.defender:
                     self._log.error("沒有足夠Kerma的GUID可用，隨便創建一個")
                 self.redis.set(self.redisPerfix+"botGUID", self.GUID)
         self.user.ID = data[-1]
@@ -187,7 +187,7 @@ class Channel:
     async def listen(self):
         while not self.ws.closed:
             msg = await self.ws.receive()
-            if self.mode==self.BotType.training:
+            if self.mode == self.BotType.training:
                 continue
             if msg.type != aiohttp.WSMsgType.TEXT:
                 continue
@@ -239,10 +239,10 @@ class Channel:
         return None
 
     async def updateUsername(self):
-        newname=self.user.nickname
-        if self.mode!=self.BotType.observer:
-            newname+="({0})".format(self.kerma)
-        newname+="".join(self.flags)
+        newname = self.user.nickname
+        if self.mode != self.BotType.observer:
+            newname += "({0})".format(self.kerma)
+        newname += "".join(self.flags)
         await self.rename(self.user, newname)
 
     async def updateFlags(self, pull=False):
@@ -477,7 +477,7 @@ class Channel:
                     return json.loads(text)
         return None
 
-    async def rename(self,user:User,newname:str):
+    async def rename(self, user: User, newname: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", user.color if user.color != "" else None, user.ID, newname, user.ID])
@@ -537,9 +537,9 @@ class Channel:
             user.nickname = self.user.nickname
             await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
 
-    @command.command(alias="rename",help=".rename <新名稱>\n修改自己的使用者名稱，只在使用者列表有效")
+    @command.command(alias="rename", help=".rename <新名稱>\n修改自己的使用者名稱，只在使用者列表有效")
     async def command_rename(self, message: Message, *args):
-        await self.rename(message.user,args[0])
+        await self.rename(message.user, args[0])
 
     @command.command(help=".member (add/remove) <使用者>\n將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令\n一般成員不可修改認證成員身分\n若不指定add/remove則自動判斷")
     async def member(self, message: Message, *args):
@@ -567,6 +567,12 @@ class Channel:
             result = "❌操作錯誤，"+usertext+"維持原身分"
 
         await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
+
+    @command.command(help='.cls\n消除所有以"."作為開頭的訊息以及機器人的訊息')
+    async def cls(self, message: Message, *args):
+        def isValid(m: Message) -> bool:
+            return m.user.ID != self.user.ID and m.content[0:len(self.commendPrefix)] != self.commendPrefix
+        await self.resetmessages(isValid)
 
     @command.command(help=".ban <使用者>\n發起封鎖特定使用者投票")
     async def ban(self, message: Message, *args):

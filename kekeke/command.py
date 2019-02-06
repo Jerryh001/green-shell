@@ -35,6 +35,9 @@ def command(*, alias: str = None, authonly: bool = False, help: str = ""):
         return False
 
     def out(coro: types.coroutine):
+
+        func_name = alias if alias else coro.__name__
+
         @wraps(coro)
         async def warp(channnel: 'Channel', *args, **kargs):
             sign = inspect.signature(coro)
@@ -48,15 +51,15 @@ def command(*, alias: str = None, authonly: bool = False, help: str = ""):
             result = None
             message: Message = getParameter("message")
             if allowExec(channnel, message.user):
-                channnel._log.info("命令"+coro.__name__+":開始執行")
+                channnel._log.info("命令"+func_name+":開始執行")
                 result = await coro(channnel, *args, **kargs)
-                channnel._log.info("命令"+coro.__name__+":執行完成")
+                channnel._log.info("命令"+func_name+":執行完成")
             else:
-                channnel._log.warning("命令"+coro.__name__+":不符合執行條件")
+                channnel._log.warning("命令"+func_name+":不符合執行條件")
             return result
 
         w = warp
-        func_name = alias if alias else coro.__name__
+        
         commands[func_name] = Command(w, func_name, help, authonly)
         return w
     return out
