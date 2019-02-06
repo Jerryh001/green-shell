@@ -69,7 +69,7 @@ class Channel:
 
     async def initial(self):
         if self.mode == self.BotType.training:
-            self._log = logging.getLogger((__name__+"#"+self.GUID[:8]))
+            self._log = logging.getLogger((__name__+"#????????"))
         while True:
             try:
                 self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
@@ -81,7 +81,8 @@ class Channel:
                 self.Close(stop=False)
                 await asyncio.wait(5)
         await self.subscribe()
-
+        if self.mode == self.BotType.training:
+            self._log = logging.getLogger((__name__+"#"+self.GUID[:8]))
         if self.mode != self.BotType.training:
             await self.updateFlags(True)
             await self.initMessages(self.name)
