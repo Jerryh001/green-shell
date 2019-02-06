@@ -243,7 +243,7 @@ class Channel:
         if self.mode!=self.BotType.observer:
             newname+="({0})".format(self.kerma)
         newname!="".join(self.flags)
-        await self.rename(Message(user=self.user), newname)
+        await self.rename(self.user, newname)
 
     async def updateFlags(self, pull=False):
         if pull:
@@ -477,6 +477,11 @@ class Channel:
                     return json.loads(text)
         return None
 
+    async def rename(self,user:User,newname:str):
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", user.color if user.color != "" else None, user.ID, newname, user.ID])
+        await self.post(payload=_payload.string)
 
 ############################################commands#######################################
 
@@ -532,12 +537,9 @@ class Channel:
             user.nickname = self.user.nickname
             await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
 
-    @command.command(help=".rename <新名稱>\n修改自己的使用者名稱，只在使用者列表有效")
-    async def rename(self, message: Message, *args):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", message.user.color if message.user.color != "" else None, message.user.ID, args[0], message.user.ID])
-        await self.post(payload=_payload.string)
+    @command.command(alias="rename",help=".rename <新名稱>\n修改自己的使用者名稱，只在使用者列表有效")
+    async def command_rename(self, message: Message, *args):
+        await self.rename(message.user,args[0])
 
     @command.command(help=".member (add/remove) <使用者>\n將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令\n一般成員不可修改認證成員身分\n若不指定add/remove則自動判斷")
     async def member(self, message: Message, *args):
