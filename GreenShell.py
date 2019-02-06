@@ -108,7 +108,7 @@ async def on_message(message: discord.Message):
         await bot.process_commands(message)
 
 @bot.command(name="train")
-async def _train(ctx: commands.Context,num:int):
+async def _train(ctx: commands.Context,*,num:int):
     redis.set("kekeke::bot::training::number",num)
     bot.loop.create_task(train(num))
 
@@ -135,6 +135,11 @@ async def detect():
 
 
 async def oversee(name: str,defender=False):
+    if name in overseeing_list:
+        logging.warning(name+"已在監視中")
+        await bot.get_channel(483242913807990806).send("`"+name+"`已在監視中")
+        return
+
     global kbot
     if not kbot:
         kbot = KBot()
@@ -186,7 +191,7 @@ async def _BeforeOversee(ctx: commands.Context):
 
 
 @bot.command()
-async def stop(ctx: commands.Context, channelname: str):
+async def stop(ctx: commands.Context,*, channelname: str):
     try:
         overseeing_list[channelname].cancel()
     except KeyError:
