@@ -62,7 +62,7 @@ class Detector():
     async def _sendReport(self, report: typing.List[detector.Channel]):
         for c in report:  # type:detector.Channel
             lastmessage: message.Message = self.lastMessages.get(c.name)
-            if not c.messages or (lastmessage and lastmessage.time > c.messages[0].time):
+            if not c.messages or (lastmessage and lastmessage.time >= c.messages[0].time):
                 continue
             embed = discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()))
             embed.set_footer(text=f"kekeke.cc/{c.name}")
