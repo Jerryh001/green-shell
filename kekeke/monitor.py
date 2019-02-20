@@ -8,16 +8,14 @@ from datetime import datetime, timezone
 
 import aiohttp
 import discord
-import redis as r
 import tzlocal
 import websockets
-
-from kekeke import red
 
 from .bot import Bot as KBot
 from .channel import Channel
 from .GWTpayload import GWTPayload
 from .message import Message
+from .red import redis
 from .user import User
 
 
@@ -29,7 +27,6 @@ class Monitor(object):
         self.stdout = stdout
         self._last_time: datetime = None
         self.bot: KBot = bot
-        self.redis = r.StrictRedis(connection_pool=red.pool())
 
     async def SendReport(self, data: list):
         if self._last_time is None:
@@ -41,8 +38,8 @@ class Monitor(object):
             duser = None
             if "discordID" in message.payload:
                 discordid = message.payload["discordID"]
-            elif self.redis.hexists("kekeke::bot::users::discordid", message.user.ID):
-                discordid = self.redis.hget("kekeke::bot::users::discordid", message.user.ID)
+            elif redis.hexists("kekeke::bot::users::discordid", message.user.ID):
+                discordid = redis.hget("kekeke::bot::users::discordid", message.user.ID)
             if discordid:
                 duser = self.stdout.guild.get_member(int(discordid))
             if duser:
@@ -75,9 +72,9 @@ class Monitor(object):
         except:
             return tzlocal.get_localzone().localize(datetime.min)
 
-    async def Oversee(self,defender=False):
+    async def Oversee(self, defender=False):
         self._log.info("開始監視 "+self.name)
-        await self.bot.subscribe(self.name,defender)
+        await self.bot.subscribe(self.name, defender)
         self.channel: Channel = self.bot.channels[self.name]
         if self.stdout:
             last_time = await self.GetLastMessageTime()
@@ -97,7 +94,6 @@ class Monitor(object):
             self._log.info(self.name+" 目前為無頭模式")
             while True:
                 await asyncio.sleep(0)
-        
 
     async def Stop(self):
         await self.bot.unSubscribe(self.name)
