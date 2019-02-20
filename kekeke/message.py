@@ -16,6 +16,7 @@ class Message:
 
     class MessageType(Enum):
         chat = "CHAT_MESSAGE"
+        keke = "KEKE_MESSAGE"
         deleteimage = "DELETE_MEDIA"
         vote = "VOTE_MESSAGE"
         other = ""

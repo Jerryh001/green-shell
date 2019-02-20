@@ -2,11 +2,8 @@ import inspect
 import types
 from functools import wraps
 
-import redis
-
-from kekeke import red
-
 from .message import Message
+from .red import redis
 from .user import User
 
 commands = dict()
@@ -27,10 +24,9 @@ def command(*, alias: str = None, authonly: bool = False, help: str = ""):
     def allowExec(self: 'Channel', user: User)->bool:
         if user.ID == self.user.ID:
             return True
-        _redis = redis.StrictRedis(connection_pool=red.pool())
-        if _redis.sismember(self.redisPerfix+"auth", user.ID) or _redis.sismember("kekeke::bot::global::auth", user.ID):
+        if redis.sismember(self.redisPerfix+"auth", user.ID) or redis.sismember("kekeke::bot::global::auth", user.ID):
             return True
-        elif not authonly and _redis.sismember(self.redisPerfix+"members", user.ID):
+        elif not authonly and redis.sismember(self.redisPerfix+"members", user.ID):
             return True
         return False
 
@@ -59,7 +55,7 @@ def command(*, alias: str = None, authonly: bool = False, help: str = ""):
             return result
 
         w = warp
-        
+
         commands[func_name] = Command(w, func_name, help, authonly)
         return w
     return out
