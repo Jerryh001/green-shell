@@ -69,7 +69,7 @@ async def GetHPMessages()->List[Channel]:
         if values:
             _log.warning("values不是空的：")
             _log.warning(values)
-    _log.info("成功取得所有訊息")
+    _log.debug("成功取得所有訊息")
     return output
 
 
