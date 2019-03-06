@@ -12,7 +12,7 @@ from kekeke import detector, message
 from kekeke.red import redis
 
 
-class Detector():
+class Detector(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.detectEvent: asyncio.Task = None
@@ -22,6 +22,7 @@ class Detector():
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
 
+    @commands.Cog.listener()
     async def on_ready(self):
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
@@ -30,6 +31,22 @@ class Detector():
         if getenv("DISCORD_PREFIX") != ".":
             return
         await self.detect()
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        user = self.bot.get_user(payload.user_id)
+        if user == self.bot.user:
+            return
+        if payload.channel_id == self.reportout.id and payload.emoji.name == r"🛡" and await self.bot.is_owner(user):
+            await self.stdout.send(f"偵測到對{(await self.reportout.get_message(payload.message_id)).embeds[0].author.name}頻道按🛡")
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+        user = self.bot.get_user(payload.user_id)
+        if user == self.bot.user:
+            return
+        if payload.channel_id == self.reportout.id and payload.emoji.name == r"🛡" and await self.bot.is_owner(user):
+            await self.stdout.send(f"偵測到對{(await self.reportout.get_message(payload.message_id)).embeds[0].author.name}頻道收回🛡")
 
     @commands.command(name="dtime")
     async def _dtime(self, ctx: commands.Context, time: int):
@@ -75,7 +92,8 @@ class Detector():
                     embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {m.content}", inline=False)
             if len(embed.fields):
                 self.lastMessages[c.name] = c.messages[0]
-                await self.reportout.send(embed=embed)
+                mess: discord.Message = await self.reportout.send(embed=embed)
+                await mess.add_reaction(r"🛡")
 
 
 def setup(bot: commands.Bot):
