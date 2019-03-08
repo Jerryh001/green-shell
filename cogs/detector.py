@@ -28,25 +28,9 @@ class Detector(commands.Cog):
         self.reportout = self.bot.get_channel(483268806072991794)
         if redis.exists("kekeke::detecttime"):
             self.detecttime = int(redis.get("kekeke::detecttime"))
-        if getenv("DISCORD_PREFIX") != ".":
+        if self.bot.command_prefix != ".":
             return
         await self.detect()
-
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        user = self.bot.get_user(payload.user_id)
-        if user == self.bot.user:
-            return
-        if payload.channel_id == self.reportout.id and payload.emoji.name == r"🛡" and await self.bot.is_owner(user):
-            await self.stdout.send(f"偵測到對{(await self.reportout.get_message(payload.message_id)).embeds[0].author.name}頻道按🛡")
-
-    @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
-        user = self.bot.get_user(payload.user_id)
-        if user == self.bot.user:
-            return
-        if payload.channel_id == self.reportout.id and payload.emoji.name == r"🛡" and await self.bot.is_owner(user):
-            await self.stdout.send(f"偵測到對{(await self.reportout.get_message(payload.message_id)).embeds[0].author.name}頻道收回🛡")
 
     @commands.command(name="dtime")
     async def _dtime(self, ctx: commands.Context, time: int):
@@ -60,6 +44,14 @@ class Detector(commands.Cog):
         await self.stdout.send("開始進行kekeke首頁監視")
         self._log.info("開始進行kekeke首頁監視")
         await self.detect()
+
+    @commands.command()
+    async def test1(self, ctx: commands.Context):
+        await self.stdout.send("!test2")
+
+    @commands.command()
+    async def test2(self, ctx: commands.Context):
+        await self.stdout.send("test2 hello")
 
     async def detect(self):
         if self.detectEvent:

@@ -21,7 +21,7 @@ kbot: KBot = None
 overseeing_list = {}
 redis = red.redis
 
-bot.load_extension('cogs.detector')
+bot.load_extension('cogs.kekeke')
 
 
 def DownloadAllFiles():
@@ -75,8 +75,8 @@ async def _IsAllowRun(ctx: commands.Context):
 async def on_ready():
     DownloadAllFiles()
     logging.info(f"Logged in as {bot.user.name}({bot.user.id})")
-    await bot.get_channel(483242913807990806).send(bot.user.name+"已上線"+bot.command_prefix)
-    if os.getenv("DISCORD_PREFIX") != ".":
+    await bot.get_channel(483242913807990806).send(f"{bot.user.name}已上線{bot.command_prefix}")
+    if bot.command_prefix != ".":
         return
     redis.sunionstore("kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool::using")
     redis.delete("kekeke::bot::GUIDpool::using")
@@ -89,11 +89,43 @@ async def on_ready():
 
 
 @bot.event
-async def on_message(message: discord.Message):
-    if message.author.bot:
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    user: discord.User = bot.get_user(payload.user_id)
+    if user == bot.user:
         return
+    channel: discord.TextChannel = bot.get_channel(payload.channel_id)
+    message: discord.Message = await channel.get_message(payload.message_id)
+    if channel.id == 483268806072991794 and payload.emoji.name == r"🛡" and await bot.is_owner(user):
+        name = ""
+        try:
+            name = message.embeds[0].author.name
+            bot.loop.create_task(oversee(name, True))
+        except:
+            await bot.get_channel(483242913807990806).send(f"無法對`{name}`進行防禦")
 
-    if message.channel.category and message.channel.category.id == 483268757884633088:
+
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    user: discord.User = bot.get_user(payload.user_id)
+    if user == bot.user:
+        return
+    channel: discord.TextChannel = bot.get_channel(payload.channel_id)
+    message: discord.Message = await channel.get_message(payload.message_id)
+    if channel.id == 483268806072991794 and payload.emoji.name == r"🛡" and await bot.is_owner(user):
+        name = ""
+        try:
+            name = message.embeds[0].author.name
+            overseeing_list[name].cancel()
+        except:
+            await bot.get_channel(483242913807990806).send(f"無法停止對`{name}`的防禦")
+
+
+@bot.event
+async def on_message(message: discord.Message):
+    # if message.author.bot:
+    #     return
+
+    if not message.author.bot and message.channel.category and message.channel.category.id == 483268757884633088:
         if message.channel.id != 483268806072991794 and redis.sismember("discordbot::overseechannels", message.channel.name):
             try:
                 await kbot.channels[message.channel.name].anonSend(message)
@@ -119,8 +151,8 @@ async def train(num: int):
 
 async def oversee(name: str, defender=False):
     if name in overseeing_list:
-        logging.warning(name+"已在監視中")
-        await bot.get_channel(483242913807990806).send("`"+name+"`已在監視中")
+        logging.warning(f"{name}已在監視中")
+        await bot.get_channel(483242913807990806).send(f"`{name}`已在監視中")
         return
 
     global kbot
@@ -241,7 +273,6 @@ def SIG_EXIT(signum, frame):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    # bot.remove_command('help')
     try:
         signal.signal(signal.SIGTERM, SIG_EXIT)
         asyncio.get_event_loop().add_signal_handler(signal.SIGTERM, SIG_EXIT)
