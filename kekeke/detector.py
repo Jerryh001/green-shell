@@ -73,12 +73,25 @@ async def GetHPMessages()->List[Channel]:
     return output
 
 
-_detect_username_list = list(map(re.compile, redis.sunion("kekeke::bot::detector::nickname", "kekeke::bot::detector::keyword")))
+_detect_username_list = list()
 
-_detect_message_list = list(map(re.compile, redis.sunion("kekeke::bot::detector::message", "kekeke::bot::detector::keyword")))
+_detect_message_list = list()
+
+_detect_last_update: datetime = None
+
+
+def updateKeywords():
+    global _detect_message_list, _detect_username_list, _detect_last_update
+    updatetime = datetime.fromisoformat(redis.get("kekeke::bot::detector::lastupdate"))
+    if not _detect_last_update or _detect_last_update < updatetime:
+        _detect_last_update = updatetime
+        _detect_username_list = list(map(re.compile, redis.sunion("kekeke::bot::detector::nickname", "kekeke::bot::detector::keyword")))
+        _detect_message_list = list(map(re.compile, redis.sunion("kekeke::bot::detector::message", "kekeke::bot::detector::keyword")))
 
 
 def CheckMessage(message: Message)->bool:
+    global _detect_message_list, _detect_username_list
+    updateKeywords()
     for regex in _detect_message_list:
         if regex.match(message.content):
             return True
