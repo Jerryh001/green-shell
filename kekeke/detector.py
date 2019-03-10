@@ -25,7 +25,7 @@ class Channel(object):
 
     def __init__(self):
         self.name = ""
-        self.messages = list()
+        self.messages: List[Message] = list()
         self.thumbnail = ""
         self.population = 0
 
@@ -73,35 +73,35 @@ async def GetHPMessages()->List[Channel]:
     return output
 
 
-_detect_username_list = list()
+_detect_username_list: List[re.Pattern] = list()
 
-_detect_message_list = list()
+_detect_message_list: List[re.Pattern] = list()
 
 _detect_last_update: datetime = None
 
 
-def updateKeywords():
+def updateKeywords()->None:
     global _detect_message_list, _detect_username_list, _detect_last_update
     updatetime = datetime.fromisoformat(redis.get("kekeke::bot::detector::lastupdate"))
     if not _detect_last_update or _detect_last_update < updatetime:
         _detect_last_update = updatetime
-        _detect_username_list = list(map(re.compile, redis.sunion("kekeke::bot::detector::nickname", "kekeke::bot::detector::keyword")))
-        _detect_message_list = list(map(re.compile, redis.sunion("kekeke::bot::detector::message", "kekeke::bot::detector::keyword")))
+        _detect_username_list = list(map(lambda string: re.compile(string, re.IGNORECASE), redis.sunion("kekeke::bot::detector::nickname", "kekeke::bot::detector::keyword")))
+        _detect_message_list = list(map(lambda string: re.compile(string, re.IGNORECASE), redis.sunion("kekeke::bot::detector::message", "kekeke::bot::detector::keyword")))
 
 
 def CheckMessage(message: Message)->bool:
     global _detect_message_list, _detect_username_list
     updateKeywords()
-    for regex in _detect_message_list:
-        if regex.match(message.content):
+    for regex in _detect_message_list:  # type:re.Pattern
+        if regex.search(message.content):
             return True
-    for regex in _detect_username_list:
-        if regex.match(message.user.nickname):
+    for regex in _detect_username_list:  # type:re.Pattern
+        if regex.search(message.user.nickname):
             return True
     return False
 
 
-async def Detect():
+async def Detect()->List[Channel]:
     channels = await GetHPMessages()
     result: List[Channel] = []
     for c in channels:  # type: Channel
