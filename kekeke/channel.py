@@ -5,6 +5,7 @@ import html
 import inspect
 import json
 import logging
+import math
 import os
 import random
 import re
@@ -352,8 +353,9 @@ class Channel:
                 user = copy.deepcopy(media.user)
                 user.nickname = self.user.nickname
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
-
         if message.user != self.user:
+            if re.search(r"^這是.{2,}攻擊$",message.content) and message.user.ID in redis.sunion(self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
+                await self.isSomethingAttack(message)
             for key in redis.smembers(self.redisPerfix+"reactionkeywords"):
                 if re.search(key, message.content):
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember(self.redisPerfix+"reactionkeywords::"+key), metionUsers=[message.user]), showID=False)
@@ -363,6 +365,34 @@ class Channel:
                     asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
                 else:
                     self._log.warning("命令"+args[0]+"不存在")
+
+    def getSomethingAttackText(self,text:str):
+        t=text+"！"
+        length=len(t)
+        lines=math.ceil(len(t)/7)
+        result=""
+        for i in range(7):
+            for j in reversed(range(lines)):
+                pos=i+j*7
+                result+=t[pos] if pos<length else "　"
+            result+="\n"
+        return result
+
+    async def isSomethingAttack(self,message:Message):
+        font = ImageFont.truetype(font=os.path.join(os.getcwd(), "kekeke/NotoSansCJKtc-Black.otf"), size=40)
+        img = Image.open(os.path.join(os.getcwd(),'kekeke/standattack.jpg'))
+        d = ImageDraw.Draw(img)
+        text=self.getSomethingAttackText(message.content)
+        d.text((450,30), text, fill=(0, 0, 0), font=font)
+        filepath = os.path.join(os.getcwd(), f"data/{message.user.ID}.jpg")
+        img.save(filepath)
+        text = await self.postImage(filepath)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=message.user, content=text["url"]), showID=False)
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            self._log.error("刪除檔案失敗")
+            self._log.error(e, exc_info=True)
 
     async def sendMessage(self, message: Message, *, showID=True, escape=True):
         message_obj = {
