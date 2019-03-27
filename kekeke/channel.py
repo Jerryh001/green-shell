@@ -65,6 +65,7 @@ class Channel:
         self.closed = False
         self.GUID = self.getGUID()
         self.kerma = 0
+        self.mudacounter=0
 
     async def initial(self):
         if self.mode == self.BotType.training:
@@ -345,14 +346,28 @@ class Channel:
             await self.updateMedia(self.messages[:-100], True)
             self.messages = self.messages[-100:]
 
+        
         if redis.sismember(self.redisPerfix+"flags", flag.muda) and message.mtype == Message.MessageType.chat:
             if not redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID) and self.isForbiddenMessage(message):
                 await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
+        
+        ismudauser=redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID)
+        if ismudauser:
+            self.mudacounter=self.mudacounter+1
+
         for media in self.medias:
             if redis.sismember(self.redisGlobalPerfix+"silentUsers", media.user.ID):
                 user = copy.deepcopy(media.user)
                 user.nickname = self.user.nickname
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
+                
+        if self.mudacounter>=5:
+            def isValid(m: Message) -> bool:
+                return m.user.ID and not redis.sismember(self.redisGlobalPerfix+"silentUsers",m.user.ID)
+            self._log.info("偵測到已知洗版，自動清除")
+            await self.resetmessages(isValid)
+            self.mudacounter=0
+
         if message.user != self.user:
             if re.search(r"^這是.{2,}攻擊$",message.content) and message.user.ID in redis.sunion(self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
                 await self.isSomethingAttack(message)
@@ -365,6 +380,7 @@ class Channel:
                     asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
                 else:
                     self._log.warning("命令"+args[0]+"不存在")
+            
 
     def getSomethingAttackText(self,text:str):
         t=text+"！"
@@ -677,9 +693,9 @@ class Channel:
     @command.command(authonly=True, help=".muda <使用者>\n使特定使用者無法發送檔案並清除全部所發送檔案")
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
-            user: User = message.metionUsers[0]
-            if not redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
-                redis.sadd(self.redisGlobalPerfix+"silentUsers", user.ID)
+            for user in message.metionUsers: # type: User
+                if not redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
+                    redis.sadd(self.redisGlobalPerfix+"silentUsers", user.ID)
 
     @command.command(authonly=True, help='.automuda\n啟用/停用當使用者發送特定關鍵字時，自動進行"muda"指令')
     async def automuda(self, message: Message, *args):
@@ -702,24 +718,30 @@ class Channel:
             await self.resetmessages(isValid)
 
     async def resetmessages(self, vaild):
+        while self.pauseListen:
+            await asyncio.sleep(0)
         validmessages = list(filter(vaild, self.messages))
         if len(validmessages) >= 1:
             self.pauseListen = True
             self.pauseMessage = validmessages[-1]
             oldest = validmessages[0]
-            if len(validmessages) < 100:
-                validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
+
             medias = self.medias.copy()
 
             for media in medias:
                 user = copy.deepcopy(media.user)
                 user.nickname = self.user.nickname
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
+            
+            await self.setMessage(validmessages)
 
+            if len(validmessages) < 100:
+                validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
+            
             for m in validmessages:
                 await self.sendMessage(m, showID=False)
 
-            await self.setMessage(validmessages)
+            
 
     async def vote(self, voteid: str, voteoption: str = "__i18n_forbid"):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
