@@ -441,6 +441,10 @@ class Channel:
             redis.sadd(self.redisPerfix+"flags", flag)
         await self.updateFlags(pull=True)
 
+    async def say(self,content:str):
+        message = Message(Message.MessageType.chat, content=content, user=self.user)
+        await self.sendMessage(message, showID=False)
+
     async def anonSend(self, message: discord.Message):
         user = copy.deepcopy(self.user)
         kid = redis.hget("discordbot::users::kekekeid", message.author.id)

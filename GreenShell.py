@@ -136,6 +136,12 @@ async def on_message(message: discord.Message):
         await bot.process_commands(message)
 
 
+@bot.command()
+async def sendall(ctx: commands.Context, *, content: str):
+    for channel in kbot.channels.values():
+        await channel.say(content)
+
+
 @bot.command(name="train")
 async def _train(ctx: commands.Context, *, num: int):
     redis.set("kekeke::bot::training::number", num)
