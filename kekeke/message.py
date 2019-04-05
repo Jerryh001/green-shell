@@ -21,6 +21,7 @@ class Message:
         vote = "VOTE_MESSAGE"
         other = ""
         population = "NO_OF_CROWD_MESSAGE"
+        system = "SYSTEM_MESSAGE"
 
     def __init__(self, mtype: MessageType = MessageType.chat, time: datetime = None, user: User = User(), content: str = "", url: str = "", metionUsers: list = [], payload: dict = dict()):
         self.mtype = mtype
