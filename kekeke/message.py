@@ -88,7 +88,7 @@ class Media:
     @staticmethod
     def loadMeaaage(message: Message)->"Media":
         media = None
-        if re.search(r"(^https://.+\.youtube\.com/.+|^https?://\S+\.(jpe?g|png|gif)$)", message.url, re.IGNORECASE):
+        if re.search(r"(^https://.+\.youtube\.com/.+|^https?://\S+\.(jpe?g|png|gif|mp4)$)", message.url, re.IGNORECASE):
             media = Media(user=message.user, url=message.url, remove=(message.mtype == Message.MessageType.deleteimage))
         return media
 

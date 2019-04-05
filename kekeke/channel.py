@@ -307,6 +307,11 @@ class Channel:
         self.medias = dict()
         self.last_send_Nicknames = dict()
         self.last_send_IDs = dict()
+        self.mudacounter=0
+        mudausers:list=redis.smembers(self.redisGlobalPerfix+"silentUsers")
+        for message in self.messages: #type:Message
+            if message.user.ID in mudausers:
+                self.mudacounter=self.mudacounter+1
         await self.updateMedia(self.messages)
 
     async def updateMedia(self, messages: list, pop=False):
