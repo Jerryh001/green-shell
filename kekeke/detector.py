@@ -77,11 +77,14 @@ _detect_username_list: List[re.Pattern] = list()
 
 _detect_message_list: List[re.Pattern] = list()
 
+_detect_ID_list: List[re.Pattern] = list()
+
 _detect_last_update: datetime = None
 
 
 def updateKeywords()->None:
-    global _detect_message_list, _detect_username_list, _detect_last_update
+    global _detect_message_list, _detect_username_list, _detect_ID_list, _detect_last_update
+    _detect_ID_list = redis.smembers("kekeke::bot::global::silentUsers")
     updatetime = datetime.fromisoformat(redis.get("kekeke::bot::detector::lastupdate"))
     if not _detect_last_update or _detect_last_update < updatetime:
         _detect_last_update = updatetime
@@ -91,18 +94,22 @@ def updateKeywords()->None:
 
 def CheckMessage(message: Message)->bool:
     global _detect_message_list, _detect_username_list
-    updateKeywords()
+
     for regex in _detect_message_list:  # type:re.Pattern
         if regex.search(message.content):
             return True
     for regex in _detect_username_list:  # type:re.Pattern
         if regex.search(message.user.nickname):
             return True
+    for ID in _detect_ID_list:
+        if message.user.ID == ID:
+            return True
     return False
 
 
 async def Detect()->List[Channel]:
     channels = await GetHPMessages()
+    updateKeywords()
     result: List[Channel] = []
     for c in channels:  # type: Channel
         messages: List[Message] = list(filter(CheckMessage, c.messages))

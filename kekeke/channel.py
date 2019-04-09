@@ -228,6 +228,7 @@ class Channel:
                         elif m.payload["title"] == "__i18n_voteBurnTitle":
                             asyncio.get_event_loop().create_task(self.burnoutCommit(m.payload["votingId"]))
                 elif m.mtype == Message.MessageType.system:
+                    self._log.warn("天之聲發言："+msg_list[3])
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="【天之聲】"+m.payload["message"], metionUsers=list(self.users)))
 
         asyncio.get_event_loop().create_task(self.reConnect())
