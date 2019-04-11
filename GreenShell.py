@@ -180,11 +180,11 @@ async def oversee(name: str, defender=False):
         await overseeing_list[name]
     except futures.CancelledError:
         await kbot.unSubscribe(name)
-        overseeing_list.pop(name)
-        redis.srem("discordbot::overseechannels", name)
         logging.info("已停止監視 "+name)
         await bot.get_channel(483242913807990806).send("已停止監視`"+name+"`")
     except Exception as e:
+        redis.srem("discordbot::overseechannels", name)
+        overseeing_list.pop(name)
         logging.error("監視 "+name+" 時發生錯誤:")
         logging.error(e, exc_info=True)
         await bot.get_channel(483242913807990806).send("監視`"+name+"`時發生錯誤")
@@ -215,7 +215,9 @@ async def _BeforeOversee(ctx: commands.Context):
 @bot.command()
 async def stop(ctx: commands.Context, *, channelname: str):
     try:
+        redis.srem("discordbot::overseechannels", channelname)
         overseeing_list[channelname].cancel()
+        overseeing_list.pop(channelname)
     except KeyError:
         logging.warning(channelname+" 不在監視中")
         await ctx.send("`"+channelname+"`"+"不在監視中")
