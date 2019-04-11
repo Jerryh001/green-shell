@@ -1,6 +1,5 @@
 discord.py[voice]
 tzlocal
 boto3
-websockets
 redis
 pillow

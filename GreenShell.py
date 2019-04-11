@@ -38,7 +38,7 @@ def DownloadAllFiles():
 class DataFile(commands.Converter):
     async def convert(self, ctx, argument):
         try:
-            message = await bot.get_channel(485322302603657218).get_message(argument)
+            message = await bot.get_channel(485322302603657218).fetch_message(argument)
             if message.attachments:
                 return message.attachments[0]
         except discord.NotFound:
@@ -94,7 +94,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if user == bot.user:
         return
     channel: discord.TextChannel = bot.get_channel(payload.channel_id)
-    message: discord.Message = await channel.get_message(payload.message_id)
+    message: discord.Message = await channel.fetch_message(payload.message_id)
     if channel.id == 483268806072991794 and payload.emoji.name == r"🛡" and await bot.is_owner(user):
         name = ""
         try:
@@ -110,7 +110,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     if user == bot.user:
         return
     channel: discord.TextChannel = bot.get_channel(payload.channel_id)
-    message: discord.Message = await channel.get_message(payload.message_id)
+    message: discord.Message = await channel.fetch_message(payload.message_id)
     if channel.id == 483268806072991794 and payload.emoji.name == r"🛡" and await bot.is_owner(user):
         name = ""
         try:
