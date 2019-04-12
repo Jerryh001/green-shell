@@ -115,7 +115,9 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
         name = ""
         try:
             name = message.embeds[0].author.name
+            redis.srem("discordbot::overseechannels", name)
             overseeing_list[name].cancel()
+            overseeing_list.pop(name)
         except:
             await bot.get_channel(483242913807990806).send(f"無法停止對`{name}`的防禦")
 
