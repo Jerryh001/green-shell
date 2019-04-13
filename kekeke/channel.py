@@ -342,10 +342,11 @@ class Channel:
         if redis.sismember(self.redisPerfix+"auth", message.user.ID) or redis.sismember(self.redisGlobalPerfix+"auth", message.user.ID):
             return False
         else:
-            for keyword in redis.smembers(self.redisGlobalPerfix+"keyword"):
-                if re.search(keyword, message.content, re.IGNORECASE) or re.search(keyword, message.user.nickname, re.IGNORECASE):
-                    return True
-            return False
+            return bool(Media.loadMeaaage(message))
+            # for keyword in redis.smembers(self.redisGlobalPerfix+"keyword"):
+            #     if re.search(keyword, message.content, re.IGNORECASE) or re.search(keyword, message.user.nickname, re.IGNORECASE):
+            #         return True
+            # return False
 
     async def receiveMessage(self, message: Message):
         self.messages.append(message)
