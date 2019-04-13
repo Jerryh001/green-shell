@@ -78,7 +78,7 @@ class Channel:
             except Exception as e:
                 self._log.error("對伺服器建立連線失敗，5秒後重試")
                 self._log.error(e, exc_info=True)
-                self.Close(stop=False)
+                await self.Close(stop=False)
                 await asyncio.wait(5)
         await self.subscribe()
         if self.mode == self.BotType.training:
@@ -543,6 +543,10 @@ class Channel:
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", user.color if user.color != "" else None, user.ID, newname, user.ID])
         await self.post(payload=_payload.string)
 
+    def getUserText(self, user: User)->str:
+        return "使用者("+user.ID[:5]+")"+user.nickname
+
+
 ############################################commands#######################################
 
     @command.command(help=".help\n顯示這個訊息")
@@ -605,7 +609,7 @@ class Channel:
     async def member(self, message: Message, *args):
         ismember = redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID)
         result = ""
-        usertext = "使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname
+        usertext = self.getUserText(message.metionUsers[0])
         if ismember:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
                 redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
@@ -644,7 +648,7 @@ class Channel:
         _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動封鎖】"], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
-    @command.command(help='.burn <使用者>\n發起燒毀特定使用者"全部"KERMA的投票')
+    @command.command(help='.burn <使用者>\n發起燒毀特定使用者10 KERMA的投票')
     async def burn(self, message: Message, *args):
         if len(message.metionUsers) > 0:
             target: User = message.metionUsers[0]
@@ -652,7 +656,7 @@ class Channel:
             _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
-            _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動燒毀全部KERMA】"], regonly=True)
+            _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動燒毀10 KERMA】"], regonly=True)
             await self.post(payload=_payload.string, url=self._vote_url)
 
     @command.command(help=".autotalk\n啟用/停用自動發送訊息功能")
@@ -676,7 +680,7 @@ class Channel:
     async def auth(self, message: Message, *args):
         isauth = redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
         result = ""
-        usertext = "使用者("+message.metionUsers[0].ID[:5]+")"+message.metionUsers[0].nickname
+        usertext = self.getUserText(message.metionUsers[0])
         if isauth:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
                 redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
@@ -706,10 +710,13 @@ class Channel:
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
             for user in message.metionUsers:  # type: User
-                if not redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
+                if redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
+                    redis.srem(self.redisGlobalPerfix+"silentUsers", user.ID)
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️將{self.getUserText(user)}移出靜音成員", metionUsers=[user, message.user]), showID=False)
+                else:
                     redis.sadd(self.redisGlobalPerfix+"silentUsers", user.ID)
 
-    @command.command(authonly=True, help='.automuda\n啟用/停用當使用者發送特定關鍵字時，自動進行"muda"指令')
+    @command.command(authonly=True, help='.automuda\n啟用/停用當非已知使用者發送圖片或影片時，自動進行"muda"指令')
     async def automuda(self, message: Message, *args):
         await self.toggleFlag(flag.muda)
 
