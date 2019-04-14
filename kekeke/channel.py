@@ -13,7 +13,10 @@ import time
 import typing
 from datetime import datetime
 from queue import Queue
+from shutil import copyfile
+from zipfile import ZipFile
 
+import aiofiles
 import aiohttp
 import discord
 import tzlocal
@@ -549,6 +552,7 @@ class Channel:
 
 ############################################commands#######################################
 
+
     @command.command(help=".help\n顯示這個訊息")
     async def help(self, message: Message, *args):
         texts = []
@@ -735,6 +739,73 @@ class Channel:
             def isValid(m: Message) -> bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
             await self.resetmessages(isValid)
+
+    @command.command(help='.save\n製作出當前對話訊息存檔')
+    async def save(self, message: Message, *args):
+        messageslist = []
+        for m in self.messages:  # type: Message
+            message_obj = {
+                "senderPublicId": m.user.ID,
+                "senderNickName": m.user.nickname,
+                "anchorUsername": "",
+                "content": html.escape(m.content),
+                "date":  str(int(m.time.timestamp()*1000)),
+                "eventType": m.mtype.value,
+                "payload": m.payload
+            }
+            if m.user.color:
+                message_obj["senderColorToken"] = m.user.color
+            message_obj["payload"]["replyPublicIds"] = []
+            if m.metionUsers:
+                for muser in m.metionUsers:
+                    message_obj["payload"]["replyPublicIds"].append(muser.ID)
+            messageslist.append(message_obj)
+
+        name_safe = html.escape(self.name)
+        chatjsonpath = os.path.join(os.getcwd(), f"data/{name_safe}-chat.json")
+        imagepath = os.path.join(os.getcwd(), f"data/{name_safe}-green.png")
+        copyfile(os.path.join(os.getcwd(), "green.png"), imagepath)
+
+        with open(chatjsonpath, 'w') as f:
+            f.write(json.dumps(messageslist,ensure_ascii=False))
+        with ZipFile(imagepath, mode='a') as z:
+            z.write(chatjsonpath, "chat.json")
+
+        text = await self.postImage(imagepath)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=message.user, content=text["url"]), showID=False)
+
+        try:
+            os.remove(imagepath)
+        except Exception as e:
+            self._log.error(f"刪除檔案{imagepath}失敗")
+            self._log.error(e, exc_info=True)
+        try:
+            os.remove(chatjsonpath)
+        except Exception as e:
+            self._log.error(f"刪除檔案{chatjsonpath}失敗")
+            self._log.error(e, exc_info=True)
+
+    @command.command(alias="load", authonly=True, help='.load <目前頻道名稱> <訊息存檔位置>\n【危險】以存檔來重置所有訊息')
+    async def command_load(self, message: Message, *args):
+        if args[0]!=self.name or len(args)<2:
+            return
+        name_safe = html.escape(self.name)
+        imagepath = os.path.join(os.getcwd(), f"data/{name_safe}-green-load.png")
+        async with self._session.get(args[1]) as resp:
+            if resp.status != 200:
+                return
+            async with aiofiles.open(imagepath, mode='wb') as f:
+                await f.write(await resp.read())
+        with ZipFile(imagepath) as z:
+            with z.open("chat.json") as c:
+                j = json.loads(c.read().decode("utf-8"))
+                self.messages=[Message.loadjson(json.dumps(m)) for m in j]
+                await self.resetmessages(lambda m: True)
+        try:
+            os.remove(imagepath)
+        except Exception as e:
+            self._log.error(f"刪除檔案{imagepath}失敗")
+            self._log.error(e, exc_info=True)
 
     async def resetmessages(self, vaild):
         while self.pauseListen:
