@@ -1,10 +1,10 @@
 import asyncio
+import datetime
 import html
 import json
 import logging
 import re
 import time
-from datetime import datetime, timezone
 
 import aiohttp
 import discord
@@ -25,7 +25,7 @@ class Monitor(object):
     def __init__(self, name: str, stdout: discord.TextChannel, bot: KBot):
         self.name = name
         self.stdout = stdout
-        self._last_time: datetime = None
+        self._last_time: datetime.datetime = None
         self.bot: KBot = bot
 
     async def SendReport(self, data: list):
@@ -64,13 +64,12 @@ class Monitor(object):
     async def GetLastMessageTime(self):
         try:
             last_messages = await self.stdout.history(limit=1).flatten()
-            if last_messages:
-                if last_messages[0].embeds:
-                    return last_messages[0].embeds[0].timestamp.replace(tzinfo=timezone.utc)
-                else:
-                    return last_messages[0].created_at.replace(tzinfo=timezone.utc)
+            try:
+                return last_messages[0].embeds[0].timestamp.replace(tzinfo=datetime.timezone.utc)
+            except:
+                return last_messages[0].created_at.replace(tzinfo=datetime.timezone.utc)
         except:
-            return tzlocal.get_localzone().localize(datetime.min)
+            return datetime.datetime(datetime.MINYEAR, 1, 1, tzinfo=datetime.timezone.utc)
 
     async def Oversee(self, defender=False):
         self._log.info("開始監視 "+self.name)
