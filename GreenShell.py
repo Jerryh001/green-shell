@@ -175,7 +175,6 @@ async def oversee(name: str, defender=False):
         channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
         if not channel:
             logging.warning(name+"頻道不存在")
-            await bot.get_channel(483242913807990806).send(name+"頻道不存在，使用無頭模式監視")
         overseeing_list[name] = bot.loop.create_task(Monitor(name, channel, kbot).Oversee())
         redis.sadd("discordbot::overseechannels", name)
     try:
