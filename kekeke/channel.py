@@ -251,10 +251,10 @@ class Channel:
         return None
 
     async def updateUsername(self):
-        newname = self.user.nickname
+        newname = self.user.nickname + "".join(self.flags)
         if self.mode != self.BotType.observer:
-            newname += "({0})".format(self.kerma)
-        newname += "".join(self.flags)
+            newname = ""
+        
         await self.rename(self.user, newname)
 
     async def updateFlags(self, pull=False):
