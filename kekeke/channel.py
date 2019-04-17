@@ -70,6 +70,7 @@ class Channel:
         self.kerma = 0
         self.mudacounter = 0
         self.mudaValue = 0
+        self.firstmuda = True
 
     async def initial(self):
         if self.mode == self.BotType.training:
@@ -213,6 +214,9 @@ class Channel:
             if self.pauseListen:
                 if m == self.pauseMessage:
                     self.pauseListen = False
+                    if self.firstmuda and self.mode == self.BotType.defender:
+                        self.firstmuda = False
+                        asyncio.get_event_loop().create_task(self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember("kekeke::bot::cool")), showID=False))
                 continue
             if publisher == "CLIENT_TRANSPORT":
                 if m.user.ID:
@@ -251,10 +255,16 @@ class Channel:
         return None
 
     async def updateUsername(self):
-        newname = self.user.nickname + "".join(self.flags)
-        if self.mode != self.BotType.observer:
+        newname = self.user.nickname
+
+        if self.mode == self.BotType.training:
+            newname = newname+f"({self.kerma})"
+
+        newname = newname+"".join(self.flags)
+
+        if self.mode == self.BotType.defender:
             newname = ""
-        
+
         await self.rename(self.user, newname)
 
     async def updateFlags(self, pull=False):
@@ -321,9 +331,9 @@ class Channel:
         for message in self.messages:  # type:Message
             if message.user.ID in mudausers:
                 self.mudacounter = self.mudacounter+1
-                self.mudaValue=self.mudaValue+1
+                self.mudaValue = self.mudaValue+1
             if self.mudaValue:
-                self.mudaValue=self.mudaValue+0.1*self.mudacounter
+                self.mudaValue = self.mudaValue+0.1*self.mudacounter
         await self.updateMedia(self.messages)
 
     async def updateMedia(self, messages: list, pop=False):
@@ -371,9 +381,9 @@ class Channel:
         ismudauser = redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID)
         if ismudauser:
             self.mudacounter = self.mudacounter+1
-            self.mudaValue=self.mudaValue+1
+            self.mudaValue = self.mudaValue+1
         if self.mudaValue:
-            self.mudaValue=self.mudaValue+0.1*self.mudacounter
+            self.mudaValue = self.mudaValue+0.1*self.mudacounter
 
         for media in self.medias:
             if redis.sismember(self.redisGlobalPerfix+"silentUsers", media.user.ID):
@@ -774,7 +784,7 @@ class Channel:
         copyfile(os.path.join(os.getcwd(), "green.png"), imagepath)
 
         with open(chatjsonpath, 'w') as f:
-            f.write(json.dumps(messageslist,ensure_ascii=False))
+            f.write(json.dumps(messageslist, ensure_ascii=False))
         with ZipFile(imagepath, mode='a') as z:
             z.write(chatjsonpath, "chat.json")
 
@@ -794,7 +804,7 @@ class Channel:
 
     @command.command(alias="load", authonly=True, help='.load <目前頻道名稱> <訊息存檔位置>\n【危險】以存檔來重置所有訊息')
     async def command_load(self, message: Message, *args):
-        if args[0]!=self.name or len(args)<2:
+        if args[0] != self.name or len(args) < 2:
             return
         name_safe = html.escape(self.name)
         imagepath = os.path.join(os.getcwd(), f"data/{name_safe}-green-load.png")
@@ -806,7 +816,7 @@ class Channel:
         with ZipFile(imagepath) as z:
             with z.open("chat.json") as c:
                 j = json.loads(c.read().decode("utf-8"))
-                self.messages=[Message.loadjson(json.dumps(m)) for m in j]
+                self.messages = [Message.loadjson(json.dumps(m)) for m in j]
                 await self.resetmessages(lambda m: True)
         try:
             os.remove(imagepath)
