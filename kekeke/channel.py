@@ -69,6 +69,7 @@ class Channel:
         self.GUID = self.getGUID()
         self.kerma = 0
         self.mudacounter = 0
+        self.mudaValue = 0
 
     async def initial(self):
         if self.mode == self.BotType.training:
@@ -315,10 +316,14 @@ class Channel:
         self.last_send_Nicknames = dict()
         self.last_send_IDs = dict()
         self.mudacounter = 0
+        self.mudaValue = 0
         mudausers: list = redis.smembers(self.redisGlobalPerfix+"silentUsers")
         for message in self.messages:  # type:Message
             if message.user.ID in mudausers:
                 self.mudacounter = self.mudacounter+1
+                self.mudaValue=self.mudaValue+1
+            if self.mudaValue:
+                self.mudaValue=self.mudaValue+0.1*self.mudacounter
         await self.updateMedia(self.messages)
 
     async def updateMedia(self, messages: list, pop=False):
@@ -366,6 +371,9 @@ class Channel:
         ismudauser = redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID)
         if ismudauser:
             self.mudacounter = self.mudacounter+1
+            self.mudaValue=self.mudaValue+1
+        if self.mudaValue:
+            self.mudaValue=self.mudaValue+0.1*self.mudacounter
 
         for media in self.medias:
             if redis.sismember(self.redisGlobalPerfix+"silentUsers", media.user.ID):
@@ -373,12 +381,11 @@ class Channel:
                 user.nickname = self.user.nickname
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
 
-        if self.mudacounter >= 5:
+        if self.mudaValue >= 5:
             def isValid(m: Message) -> bool:
                 return m.user.ID and not redis.sismember(self.redisGlobalPerfix+"silentUsers", m.user.ID)
             self._log.info("偵測到已知洗版，自動清除")
             await self.resetmessages(isValid)
-            self.mudacounter = 0
 
         if message.user != self.user:
             if re.search(r"^這是.{2,}攻擊$", message.content) and message.user.ID in redis.sunion(self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
