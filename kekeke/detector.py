@@ -65,7 +65,8 @@ async def GetHPMessages()->List[Channel]:
                     values.pop()  # width
                 values.pop()  # com.liquable.gwt.transport.client.Destination/2061503238
                 ch.name = strings[values.pop()][len("/topic/"):]  # /topic/???
-                output.append(ch)
+                if ch.name not in redis.smembers("kekeke::bot::detector::ignoretopic"):
+                    output.append(ch)
         if values:
             _log.warning("values不是空的：")
             _log.warning(values)
