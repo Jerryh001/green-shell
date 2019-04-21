@@ -330,10 +330,9 @@ class Channel:
         mudausers: list = redis.smembers(self.redisGlobalPerfix+"silentUsers")
         for message in self.messages:  # type:Message
             if message.user.ID in mudausers:
-                self.mudacounter = self.mudacounter+1
-                self.mudaValue = self.mudaValue+1
-            if self.mudaValue:
-                self.mudaValue = self.mudaValue+0.1*self.mudacounter
+                self.mudacounter = self.mudacounter + 1
+                self.mudaValue = self.mudaValue + 1
+            self.mudaValue = self.mudaValue + 0.2 * self.mudacounter
         await self.updateMedia(self.messages)
 
     async def updateMedia(self, messages: list, pop=False):
@@ -380,10 +379,9 @@ class Channel:
 
         ismudauser = redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID)
         if ismudauser:
-            self.mudacounter = self.mudacounter+1
-            self.mudaValue = self.mudaValue+1
-        if self.mudaValue:
-            self.mudaValue = self.mudaValue+0.1*self.mudacounter
+            self.mudacounter = self.mudacounter + 1
+            self.mudaValue = self.mudaValue + 1
+        self.mudaValue = self.mudaValue + 0.2 * self.mudacounter
 
         for media in self.medias:
             if redis.sismember(self.redisGlobalPerfix+"silentUsers", media.user.ID):
