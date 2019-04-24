@@ -95,13 +95,24 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         return
     channel: discord.TextChannel = bot.get_channel(payload.channel_id)
     message: discord.Message = await channel.fetch_message(payload.message_id)
-    if channel.id == 483268806072991794 and payload.emoji.name == r"🛡" and await bot.is_owner(user):
-        name = ""
-        try:
-            name = message.embeds[0].author.name
-            bot.loop.create_task(oversee(name, True))
-        except:
-            await bot.get_channel(483242913807990806).send(f"無法對`{name}`進行防禦")
+    if channel.id == 483268806072991794 and await bot.is_owner(user): 
+        if payload.emoji.name == r"🛡" :
+            name = ""
+            try:
+                name = message.embeds[0].author.name
+                bot.loop.create_task(oversee(name, True))
+            except:
+                await bot.get_channel(483242913807990806).send(f"無法對`{name}`進行防禦")
+        if payload.emoji.name == r"🇲" :
+            userid = message.embeds[0].footer.text
+            if len(userid) != 40:
+                await bot.get_channel(483242913807990806).send(f"無法把`{userid}`加入靜音成員")
+                return
+            if redis.sadd("kekeke::bot::global::silentUsers",userid):
+                return
+            else:
+                await bot.get_channel(483242913807990806).send(f"`{userid}`已經加入過了")
+                return
 
 
 @bot.event

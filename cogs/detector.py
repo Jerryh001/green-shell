@@ -73,19 +73,26 @@ class Detector(commands.Cog):
             lastmessage: message.Message = self.lastMessages.get(c.name)
             if not c.messages or (lastmessage and lastmessage.time >= c.messages[0].time):
                 continue
-            embed = discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()))
-            embed.set_footer(text=f"kekeke.cc/{c.name}")
-            if c.thumbnail:
-                embed.set_thumbnail(url=c.thumbnail)
-            embed.set_author(name=c.name, url=f"https://kekeke.cc/{c.name}")
-            embed.add_field(name="上線人數", value=c.population)
-            for m in reversed(c.messages):  # type:message.Message
-                if not lastmessage or lastmessage.time < m.time:
-                    embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {m.content}", inline=False)
-            if len(embed.fields):
+            lastuserID=None
+            embed=None
+            embedlist=[]
+            for m in filter(lambda m: not lastmessage or lastmessage.time < m.time,reversed(c.messages)):  # type:message.Message
+                if not lastuserID or lastuserID != m.user.ID:
+                    if embed:
+                        embedlist.append(embed)
+                    embed = discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()))
+                    embed.set_footer(text=m.user.ID)
+                    if c.thumbnail:
+                        embed.set_thumbnail(url=c.thumbnail)
+                    embed.set_author(name=c.name, url=f"https://kekeke.cc/{c.name}")
+                    embed.add_field(name="上線人數", value=c.population)
+                    lastuserID = m.user.ID
+                embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {m.content}", inline=False)
+            for embed in embedlist:
                 self.lastMessages[c.name] = c.messages[0]
                 mess: discord.Message = await self.reportout.send(embed=embed)
                 await mess.add_reaction(r"🛡")
+                await mess.add_reaction(r"🇲")
 
 
 def setup(bot: commands.Bot):
