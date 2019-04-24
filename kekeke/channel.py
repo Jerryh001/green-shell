@@ -71,6 +71,7 @@ class Channel:
         self.mudacounter = 0
         self.mudaValue = 0
         self.firstmuda = True
+        self.mudausers = list()
 
     async def initial(self):
         if self.mode == self.BotType.training:
@@ -320,19 +321,22 @@ class Channel:
 
         return False
 
+    def initMudaValue(self):
+        self.mudacounter = 0
+        self.mudaValue = 0
+        self.mudausers: list = redis.smembers(self.redisGlobalPerfix+"silentUsers")
+        for message in self.messages:  # type:Message
+            if message.user.ID in self.mudausers:
+                self.mudacounter = self.mudacounter + 1
+                self.mudaValue = self.mudaValue + 1
+            self.mudaValue = self.mudaValue + 0.2 * self.mudacounter
+
     async def setMessage(self, message_list: list):
         self.messages = message_list
         self.medias = dict()
         self.last_send_Nicknames = dict()
         self.last_send_IDs = dict()
-        self.mudacounter = 0
-        self.mudaValue = 0
-        mudausers: list = redis.smembers(self.redisGlobalPerfix+"silentUsers")
-        for message in self.messages:  # type:Message
-            if message.user.ID in mudausers:
-                self.mudacounter = self.mudacounter + 1
-                self.mudaValue = self.mudaValue + 1
-            self.mudaValue = self.mudaValue + 0.2 * self.mudacounter
+        self.initMudaValue()
         await self.updateMedia(self.messages)
 
     async def updateMedia(self, messages: list, pop=False):
@@ -378,16 +382,19 @@ class Channel:
                 await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
 
         ismudauser = redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID)
-        if ismudauser:
+        if message.user.ID in self.mudausers:
             self.mudacounter = self.mudacounter + 1
             self.mudaValue = self.mudaValue + 1
         self.mudaValue = self.mudaValue + 0.2 * self.mudacounter
 
         for media in self.medias:
-            if redis.sismember(self.redisGlobalPerfix+"silentUsers", media.user.ID):
+            if message.user.ID in self.mudausers:
                 user = copy.deepcopy(media.user)
                 user.nickname = self.user.nickname
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
+
+        if redis.scard(self.redisGlobalPerfix+"silentUsers") != len(self.mudausers):
+            self.initMudaValue()
 
         if self.mudaValue >= 5:
             def isValid(m: Message) -> bool:
