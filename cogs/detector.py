@@ -88,6 +88,8 @@ class Detector(commands.Cog):
                     embed.add_field(name="上線人數", value=c.population)
                     lastuserID = m.user.ID
                 embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {m.content}", inline=False)
+            if embed:
+                embedlist.append(embed)
             for embed in embedlist:
                 self.lastMessages[c.name] = c.messages[0]
                 mess: discord.Message = await self.reportout.send(embed=embed)
