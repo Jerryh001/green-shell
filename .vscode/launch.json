@@ -9,14 +9,14 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "envFile": "${workspaceFolder}/data/.env"
+            "envFile": "${workspaceFolder}\\data\\.env"
         },
         {
             "name": "Python: Green Shell",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/GreenShell.py",
-            "envFile": "${workspaceFolder}/data/.env"
+            "program": "${workspaceFolder}\\GreenShell.py",
+            "envFile": "${workspaceFolder}\\data\\.env"
         }
     ]
 }

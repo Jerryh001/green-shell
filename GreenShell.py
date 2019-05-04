@@ -95,20 +95,23 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         return
     channel: discord.TextChannel = bot.get_channel(payload.channel_id)
     message: discord.Message = await channel.fetch_message(payload.message_id)
-    if channel.id == 483268806072991794 and await bot.is_owner(user): 
-        if payload.emoji.name == r"🛡" :
+    if channel.id == 483268806072991794 and await bot.is_owner(user):
+        if payload.emoji.name == r"🛡":
             name = ""
             try:
                 name = message.embeds[0].author.name
                 bot.loop.create_task(oversee(name, True))
             except:
                 await bot.get_channel(483242913807990806).send(f"無法對`{name}`進行防禦")
-        if payload.emoji.name == r"🇲" :
+        if payload.emoji.name == r"🇲":
             userid = message.embeds[0].footer.text
             if len(userid) != 40:
                 await bot.get_channel(483242913807990806).send(f"無法把`{userid}`加入靜音成員")
                 return
-            if redis.sadd("kekeke::bot::global::silentUsers",userid):
+            if redis.sadd("kekeke::bot::global::silentUsers", userid):
+                await message.add_reaction(r"🇺")
+                await message.add_reaction(r"🇩")
+                await message.add_reaction(r"🇦")
                 return
             else:
                 await bot.get_channel(483242913807990806).send(f"`{userid}`已經加入過了")
@@ -135,9 +138,19 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
 
 @bot.event
 async def on_message(message: discord.Message):
-    # if message.author.bot:
+    # if message.channel.id == 483268806072991794:
+    #     kekekeid = message.embeds[0].footer.text
+    #     channelname = message.embeds[0].author.name
+    #     if len(kekekeid) == 40 and redis.sismember("kekeke::bot::global::silentUsers", kekekeid) and not redis.sismember("discordbot::overseechannels", channelname):
+    #         bot.loop.create_task(oversee(channelname, True))
+    #         await asyncio.sleep(600)
+    #         try:
+    #             redis.srem("discordbot::overseechannels", channelname)
+    #             overseeing_list[channelname].cancel()
+    #             overseeing_list.pop(channelname)
+    #         except KeyError:
+    #             pass
     #     return
-
     if not message.author.bot and message.channel.category and message.channel.category.id == 483268757884633088:
         if message.channel.id != 483268806072991794 and redis.sismember("discordbot::overseechannels", message.channel.name):
             try:
@@ -194,6 +207,12 @@ async def oversee(name: str, defender=False):
         await kbot.unSubscribe(name)
         logging.info("已停止監視 "+name)
         await bot.get_channel(483242913807990806).send("已停止監視`"+name+"`")
+    except ValueError as e:
+        redis.srem("discordbot::overseechannels", name)
+        overseeing_list.pop(name)
+        await kbot.unSubscribe(name)
+        logging.info(f"已停止監視{name}，目標可能為主播廣場")
+        await bot.get_channel(483242913807990806).send(f"已停止監視`{name}`，目標可能為主播廣場")
     except Exception as e:
         redis.srem("discordbot::overseechannels", name)
         overseeing_list.pop(name)

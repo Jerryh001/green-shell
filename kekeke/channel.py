@@ -167,6 +167,8 @@ class Channel:
             else:
                 await asyncio.sleep(5)
         data = data[-3]
+        if data[1] == "com.liquable.hiroba.gwt.client.square.AnchorSquareView/1913755809":#AnchorSquare
+            raise ValueError()
         if not self.GUID:
             self.GUID = data[1]
             if self.mode == self.BotType.training:
