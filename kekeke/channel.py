@@ -95,7 +95,24 @@ class Channel:
             await self.updateUsers()
             asyncio.get_event_loop().create_task(self.showLogo())
 
+        if self.mode == self.BotType.defender:
+            self.timeout = asyncio.get_event_loop().create_task(self.SelfTimeout())
+
         self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
+
+    async def SelfTimeout(self):
+        await asyncio.sleep(900)
+        if self.mudaValue:
+            def isValid(m: Message) -> bool:
+                return m.user.ID and m.user.ID not in self.mudausers
+            self._log.info("有殘餘洗版訊息，自動清除")
+            await self.resetmessages(isValid)
+            self.timeout = asyncio.get_event_loop().create_task(self.SelfTimeout())
+            return
+        else:
+            await self.Close()
+
+
 
     async def Close(self, stop=True):
         if stop:
@@ -466,6 +483,8 @@ class Channel:
 
     async def waitMessage(self) -> Message:
         while self.message_queue.qsize() < 1:
+            if self.closed:
+                return None
             await asyncio.sleep(0)
         return self.message_queue.get()
 

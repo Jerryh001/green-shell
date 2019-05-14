@@ -81,20 +81,18 @@ class Monitor(commands.Cog):
             await self.overseeing_list[name]
         except futures.CancelledError:
             await self.kekeke.kbot.unSubscribe(name)
-            logging.info("已停止監視 "+name)
-            await self.stdout.send("已停止監視`"+name+"`")
         except ValueError as e:
-            redis.srem("discordbot::overseechannels", name)
-            self.overseeing_list.pop(name)
             await self.kekeke.kbot.unSubscribe(name)
-            logging.info(f"已停止監視{name}，目標可能為主播廣場")
-            await self.stdout.send(f"已停止監視`{name}`，目標可能為主播廣場")
+            logging.info(f"{name}可能為主播廣場")
+            await self.stdout.send(f"`{name}`可能為主播廣場")
         except Exception as e:
-            redis.srem("discordbot::overseechannels", name)
-            self.overseeing_list.pop(name)
-            logging.error("監視 "+name+" 時發生錯誤:")
+            logging.error(f"監視{name}時發生錯誤:")
             logging.error(e, exc_info=True)
             await self.stdout.send(f"監視`{name}`時發生錯誤")
+        redis.srem("discordbot::overseechannels", name)
+        self.overseeing_list.pop(name)
+        logging.info(f"已停止監視{name}")
+        await self.stdout.send(f"已停止監視`{name}`")
 
     @commands.command()
     async def sendall(self, ctx: commands.Context, *, content: str):

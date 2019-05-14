@@ -12,6 +12,17 @@ class Bot:
     def __init__(self):
         self.channels = dict()
         self.trainings = list()
+        asyncio.get_event_loop().create_task(self.Cleaner())
+
+    async def Cleaner(self):
+        while True:
+            stopped = []
+            for channel in self.channels:
+                if self.channels[channel].closed:
+                    stopped.append(channel)
+            for channel in stopped:
+                self.channels.pop(channel)
+            await asyncio.sleep(0)
 
     async def train(self, num: int):
         size = len(self.trainings)
@@ -38,7 +49,6 @@ class Bot:
 
     async def unSubscribe(self, channel: str):
         try:
-            c: Channel = self.channels.pop(channel)
-            await c.Close()
+            await self.channels[channel].Close()
         except KeyError:
             pass

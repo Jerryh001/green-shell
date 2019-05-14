@@ -22,6 +22,7 @@ class Detector(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        self.monitor = self.bot.get_cog('Monitor')
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
         if redis.exists("kekeke::detecttime"):
@@ -69,7 +70,10 @@ class Detector(commands.Cog):
             for m in filter(lambda m: not lastmessage or lastmessage.time < m.time, reversed(c.messages)):  # type:message.Message
                 if not lastuserID or lastuserID != m.user.ID:
                     if embed:
-                        embedlist.append(embed)
+                        if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
+                            self.bot.loop.create_task(self.monitor.oversee(embed.author.name, True))
+                        else:
+                            embedlist.append(embed)
                     embed = discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()))
                     embed.set_footer(text=m.user.ID)
                     if c.thumbnail:
@@ -79,7 +83,10 @@ class Detector(commands.Cog):
                     lastuserID = m.user.ID
                 embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {m.content}", inline=False)
             if embed:
-                embedlist.append(embed)
+                if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
+                    self.bot.loop.create_task(self.monitor.oversee(embed.author.name, True))
+                else:
+                    embedlist.append(embed)
             for embed in embedlist:
                 self.lastMessages[c.name] = c.messages[0]
                 mess: discord.Message = await self.reportout.send(embed=embed)

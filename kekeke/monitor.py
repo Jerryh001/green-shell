@@ -91,7 +91,7 @@ class Monitor(object):
                     await self.SendReport([m])
         else:
             self._log.info(self.name+" 目前為無頭模式")
-            while True:
+            while self.bot.isSubscribe(self.name):
                 await asyncio.sleep(0)
 
     async def Stop(self):
