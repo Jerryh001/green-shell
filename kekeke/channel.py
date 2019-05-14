@@ -50,7 +50,7 @@ class Channel:
     def __init__(self, name: str, mode: BotType = BotType.observer):
         self.mode = mode
         self.name = name
-        self.user = User(("小小綠盾" if self.mode == self.BotType.training else "綠盾防禦系統")+"#Bot")
+        self.user = User(("小小綠盾" if self.mode == self.BotType.training else "綠盾防禦系統")+"#Bot",anchorUsername="__BOT__")
         self._log = logging.getLogger((__name__+"@"+self.name))
         self.session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
@@ -390,9 +390,10 @@ class Channel:
 
         for media in self.medias:
             if media.user.ID in self.mudausers:
-                user = copy.deepcopy(media.user)
-                user.nickname = self.user.nickname
-                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[message.user]), showID=False)
+                user = copy.deepcopy(self.user)
+                user.ID = media.user.ID
+                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[media.user]), showID=False)
+                asyncio.get_event_loop().create_task(self.showLogo())
 
         if redis.scard(self.redisGlobalPerfix+"silentUsers") != len(self.mudausers):
             self.initMudaValue()
@@ -448,7 +449,7 @@ class Channel:
         message_obj = {
             "senderPublicId": message.user.ID,
             "senderNickName": (message.user.ID[:5]+"#" if showID else "")+message.user.nickname,
-            "anchorUsername": "",
+            "anchorUsername": message.user.anchorUsername,
             "content": html.escape(message.content) if escape else message.content,
             "date":  str(int(message.time.timestamp()*1000)),
             "eventType": message.mtype.value,
@@ -841,10 +842,11 @@ class Channel:
 
             medias = self.medias.copy()
 
+            mudatext=random.choice(["muda", "沒用", "無駄"])
             for media in medias:
-                user = copy.deepcopy(media.user)
-                user.nickname = self.user.nickname
-                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url), showID=False)
+                user = copy.deepcopy(self.user)
+                user.ID = media.user.ID
+                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=f"{mudatext} {media.url}"), showID=False)
 
             await self.setMessage(validmessages)
 

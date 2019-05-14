@@ -23,7 +23,7 @@ class Message:
         population = "NO_OF_CROWD_MESSAGE"
         system = "SYSTEM_MESSAGE"
 
-    def __init__(self, mtype: MessageType = MessageType.chat, time: datetime = None, user: User = User(), content: str = "", url: str = "", metionUsers: list = [], payload: dict = dict()):
+    def __init__(self, mtype: MessageType = MessageType.chat, time: datetime = None, user: User = User(), content: str = "", url: str = "", metionUsers: list = [], payload: dict = dict(), anchorUsername: str = ""):
         self.mtype = mtype
         self.time = time if time else tzlocal.get_localzone().localize(datetime.now())
         self.user = user
@@ -78,7 +78,7 @@ class Message:
             usercolor = message["senderColorToken"]
         except:
             pass
-        return Message(mtype=mtype, time=message_time, user=User(ID=message["senderPublicId"], name=message["senderNickName"], color=usercolor), content=message["content"], url=url.group(0) if url else "", metionUsers=metionUsers, payload=message["payload"] if "payload" in message else dict())
+        return Message(mtype=mtype, time=message_time, user=User(ID=message["senderPublicId"], name=message["senderNickName"], color=usercolor, anchorUsername=message["anchorUsername"]), content=message["content"], url=url.group(0) if url else "", metionUsers=metionUsers, payload=message["payload"] if "payload" in message else dict())
 
     def __eq__(self, that):
         return isinstance(that, Message) and self.mtype == that.mtype and self.time == that.time and self.user.ID == that.user.ID and self.content == that.content
