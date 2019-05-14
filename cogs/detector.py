@@ -17,8 +17,6 @@ class Detector(commands.Cog):
         self.bot = bot
         self.detectEvent: asyncio.Task = None
         self.detecttime = 30
-        self.stdout: discord.TextChannel = None
-        self.reportout: discord.TextChannel = None
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
 
@@ -45,14 +43,6 @@ class Detector(commands.Cog):
         self._log.info("開始進行kekeke首頁監視")
         await self.detect()
 
-    @commands.command()
-    async def test1(self, ctx: commands.Context):
-        await self.stdout.send("!test2")
-
-    @commands.command()
-    async def test2(self, ctx: commands.Context):
-        await self.stdout.send("test2 hello")
-
     async def detect(self):
         if self.detectEvent:
             self.detectEvent.cancel()
@@ -73,10 +63,10 @@ class Detector(commands.Cog):
             lastmessage: message.Message = self.lastMessages.get(c.name)
             if not c.messages or (lastmessage and lastmessage.time >= c.messages[0].time):
                 continue
-            lastuserID=None
-            embed=None
-            embedlist=[]
-            for m in filter(lambda m: not lastmessage or lastmessage.time < m.time,reversed(c.messages)):  # type:message.Message
+            lastuserID = None
+            embed = None
+            embedlist = []
+            for m in filter(lambda m: not lastmessage or lastmessage.time < m.time, reversed(c.messages)):  # type:message.Message
                 if not lastuserID or lastuserID != m.user.ID:
                     if embed:
                         embedlist.append(embed)

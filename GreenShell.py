@@ -11,15 +11,12 @@ import boto3
 import discord
 from discord.ext import commands
 
-from kekeke import red
 from kekeke.bot import Bot as KBot
 from kekeke.monitor import Monitor
+from kekeke.red import redis
 
 CUBENAME = re.search(r"(?<=/)[^/]+$", os.getenv("CLOUDCUBE_URL"), re.IGNORECASE).group(0)
 bot = commands.Bot(command_prefix=os.getenv("DISCORD_PREFIX"), owner_id=152965086951112704)
-kbot: KBot = None
-overseeing_list = {}
-redis = red.redis
 
 bot.load_extension('cogs.kekeke')
 
@@ -76,194 +73,11 @@ async def on_ready():
     DownloadAllFiles()
     logging.info(f"Logged in as {bot.user.name}({bot.user.id})")
     await bot.get_channel(483242913807990806).send(f"{bot.user.name}已上線{bot.command_prefix}")
-    if bot.command_prefix != ".":
-        return
-    redis.sunionstore("kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool::using")
-    redis.delete("kekeke::bot::GUIDpool::using")
-    for channelname in redis.smembers("discordbot::overseechannels"):
-        bot.loop.create_task(oversee(channelname))
-    try:
-        bot.loop.create_task(train(int(redis.get("kekeke::bot::training::number"))))
-    except ValueError:
-        pass
-
-
-@bot.event
-async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
-    user: discord.User = bot.get_user(payload.user_id)
-    if user == bot.user:
-        return
-    channel: discord.TextChannel = bot.get_channel(payload.channel_id)
-    message: discord.Message = await channel.fetch_message(payload.message_id)
-    if channel.id == 483268806072991794 and await bot.is_owner(user):
-        if payload.emoji.name == r"🛡":
-            name = ""
-            try:
-                name = message.embeds[0].author.name
-                bot.loop.create_task(oversee(name, True))
-            except:
-                await bot.get_channel(483242913807990806).send(f"無法對`{name}`進行防禦")
-        if payload.emoji.name == r"🇲":
-            userid = message.embeds[0].footer.text
-            if len(userid) != 40:
-                await bot.get_channel(483242913807990806).send(f"無法把`{userid}`加入靜音成員")
-                return
-            if redis.sadd("kekeke::bot::global::silentUsers", userid):
-                await message.add_reaction(r"🇺")
-                await message.add_reaction(r"🇩")
-                await message.add_reaction(r"🇦")
-                return
-            else:
-                await bot.get_channel(483242913807990806).send(f"`{userid}`已經加入過了")
-                return
-
-
-@bot.event
-async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
-    user: discord.User = bot.get_user(payload.user_id)
-    if user == bot.user:
-        return
-    channel: discord.TextChannel = bot.get_channel(payload.channel_id)
-    message: discord.Message = await channel.fetch_message(payload.message_id)
-    if channel.id == 483268806072991794 and payload.emoji.name == r"🛡" and await bot.is_owner(user):
-        name = ""
-        try:
-            name = message.embeds[0].author.name
-            redis.srem("discordbot::overseechannels", name)
-            overseeing_list[name].cancel()
-            overseeing_list.pop(name)
-        except:
-            await bot.get_channel(483242913807990806).send(f"無法停止對`{name}`的防禦")
 
 
 @bot.event
 async def on_message(message: discord.Message):
-    # if message.channel.id == 483268806072991794:
-    #     kekekeid = message.embeds[0].footer.text
-    #     channelname = message.embeds[0].author.name
-    #     if len(kekekeid) == 40 and redis.sismember("kekeke::bot::global::silentUsers", kekekeid) and not redis.sismember("discordbot::overseechannels", channelname):
-    #         bot.loop.create_task(oversee(channelname, True))
-    #         await asyncio.sleep(600)
-    #         try:
-    #             redis.srem("discordbot::overseechannels", channelname)
-    #             overseeing_list[channelname].cancel()
-    #             overseeing_list.pop(channelname)
-    #         except KeyError:
-    #             pass
-    #     return
-    if not message.author.bot and message.channel.category and message.channel.category.id == 483268757884633088:
-        if message.channel.id != 483268806072991794 and redis.sismember("discordbot::overseechannels", message.channel.name):
-            try:
-                await kbot.channels[message.channel.name].anonSend(message)
-            except KeyError:
-                logging.warning(message.channel.name+"不在監視中，無法發送訊息")
-        await message.delete()
-    else:
-        await bot.process_commands(message)
-
-
-@bot.command()
-async def sendall(ctx: commands.Context, *, content: str):
-    for channel in kbot.channels.values():
-        await channel.say(content)
-
-
-@bot.command(name="train")
-async def _train(ctx: commands.Context, *, num: int):
-    redis.set("kekeke::bot::training::number", num)
-    bot.loop.create_task(train(num))
-
-
-async def train(num: int):
-    global kbot
-    if not kbot:
-        kbot = KBot()
-    await kbot.train(num)
-
-
-async def oversee(name: str, defender=False):
-    if name in overseeing_list:
-        logging.warning(f"{name}已在監視中")
-        await bot.get_channel(483242913807990806).send(f"`{name}`已在監視中")
-        return
-
-    global kbot
-    if not kbot:
-        kbot = KBot()
-
-    if defender:
-        logging.info("對"+name+"進行防禦")
-        await bot.get_channel(483242913807990806).send("對`"+name+"`進行防禦")
-        overseeing_list[name] = bot.loop.create_task(Monitor(name, None, kbot).Oversee(True))
-    else:
-        channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == name), None)
-        if not channel:
-            logging.warning(name+"頻道不存在")
-        overseeing_list[name] = bot.loop.create_task(Monitor(name, channel, kbot).Oversee())
-        redis.sadd("discordbot::overseechannels", name)
-    try:
-        await overseeing_list[name]
-    except futures.CancelledError:
-        await kbot.unSubscribe(name)
-        logging.info("已停止監視 "+name)
-        await bot.get_channel(483242913807990806).send("已停止監視`"+name+"`")
-    except ValueError as e:
-        redis.srem("discordbot::overseechannels", name)
-        overseeing_list.pop(name)
-        await kbot.unSubscribe(name)
-        logging.info(f"已停止監視{name}，目標可能為主播廣場")
-        await bot.get_channel(483242913807990806).send(f"已停止監視`{name}`，目標可能為主播廣場")
-    except Exception as e:
-        redis.srem("discordbot::overseechannels", name)
-        overseeing_list.pop(name)
-        logging.error("監視 "+name+" 時發生錯誤:")
-        logging.error(e, exc_info=True)
-        await bot.get_channel(483242913807990806).send("監視`"+name+"`時發生錯誤")
-
-
-@bot.command(name="oversee", aliases=["o"])
-async def _oversee(ctx: commands.Context, *, channelname: str):
-    bot.loop.create_task(oversee(channelname))
-
-
-@bot.command(aliases=["d"])
-async def defend(ctx: commands.Context, *, channelname: str):
-    bot.loop.create_task(oversee(channelname, True))
-
-
-@_oversee.before_invoke
-async def _BeforeOversee(ctx: commands.Context):
-    global kbot
-    if not kbot:
-        kbot = KBot()
-    channel: discord.TextChannel = next((c for c in bot.get_channel(483268757884633088).channels if c.name == ctx.kwargs["channelname"]), None)
-    if channel:
-        url = r"https://kekeke.cc/"+channel.name
-        if channel.topic != url:
-            await channel.edit(topic=url)
-
-
-@bot.command()
-async def stop(ctx: commands.Context, *, channelname: str):
-    try:
-        redis.srem("discordbot::overseechannels", channelname)
-        overseeing_list[channelname].cancel()
-        overseeing_list.pop(channelname)
-    except KeyError:
-        logging.warning(channelname+" 不在監視中")
-        await ctx.send("`"+channelname+"`"+"不在監視中")
-    except Exception as e:
-        logging.error("停止監視 "+channelname+" 失敗")
-        logging.error(e, exc_info=True)
-        await ctx.send("停止監視`"+channelname+"`失敗")
-
-
-@bot.command()
-async def on_oversee(ctx: commands.Context):
-    if overseeing_list:
-        await ctx.send("監視中頻道：\n```"+"\n".join(overseeing_list)+"```")
-    else:
-        await ctx.send("沒有頻道監視中")
+    await bot.process_commands(message)
 
 
 @bot.command()
