@@ -54,9 +54,6 @@ class Detector(commands.Cog):
             result = await detector.Detect()
             if result:
                 await self._sendReport(result)
-                self._log.info("kekeke首頁已更新")
-            else:
-                self._log.debug("kekeke首頁無資料更新")
             await asyncio.sleep(self.detecttime)
 
     async def _sendReport(self, report: typing.List[detector.Channel]):
@@ -92,6 +89,10 @@ class Detector(commands.Cog):
                 mess: discord.Message = await self.reportout.send(embed=embed)
                 await mess.add_reaction(r"🛡")
                 await mess.add_reaction(r"🇲")
+            if embedlist:
+                self._log.info("kekeke首頁已更新")
+            else:
+                self._log.debug("kekeke首頁無資料更新")
 
     async def autoDefend(self, name: str):
         if name not in self.monitor.overseeing_list:
