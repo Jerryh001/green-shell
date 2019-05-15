@@ -71,7 +71,7 @@ class Detector(commands.Cog):
                 if not lastuserID or lastuserID != m.user.ID:
                     if embed:
                         if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
-                            self.bot.loop.create_task(self.monitor.oversee(embed.author.name, True))
+                            self.bot.loop.create_task(self.autoDefend(embed.author.name))
                         else:
                             embedlist.append(embed)
                     embed = discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()))
@@ -84,7 +84,7 @@ class Detector(commands.Cog):
                 embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {m.content}", inline=False)
             if embed:
                 if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
-                    self.bot.loop.create_task(self.monitor.oversee(embed.author.name, True))
+                    self.bot.loop.create_task(self.autoDefend(embed.author.name))
                 else:
                     embedlist.append(embed)
             for embed in embedlist:
@@ -92,6 +92,10 @@ class Detector(commands.Cog):
                 mess: discord.Message = await self.reportout.send(embed=embed)
                 await mess.add_reaction(r"🛡")
                 await mess.add_reaction(r"🇲")
+
+    async def autoDefend(self, name: str):
+        if name not in self.monitor.overseeing_list:
+            await self.monitor.oversee(name, True)
 
 
 def setup(bot: commands.Bot):

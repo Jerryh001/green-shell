@@ -39,7 +39,6 @@ class Channel:
         observer = 1
         defender = 2
 
-    _notwelcomes = JsonFile(os.path.join(os.getcwd(), "data/keyword.json"))
     _square_url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService"
     _vote_url = "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/voteService"
     _header = {"content-type": "text/x-gwt-rpc; charset=UTF-8"}
@@ -72,6 +71,7 @@ class Channel:
         self.mudaValue = 0
         self.firstmuda = True
         self.mudausers = list()
+        self.timeout = None
 
     async def initial(self):
         if self.mode == self.BotType.training:
@@ -107,7 +107,6 @@ class Channel:
                 return m.user.ID and m.user.ID not in self.mudausers
             self._log.info("有殘餘洗版訊息，自動清除")
             await self.resetmessages(isValid)
-            self.timeout = asyncio.get_event_loop().create_task(self.SelfTimeout())
             return
         else:
             await self.Close()
@@ -239,8 +238,7 @@ class Channel:
                         asyncio.get_event_loop().create_task(self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember("kekeke::bot::cool")), showID=False))
                 continue
             if publisher == "CLIENT_TRANSPORT":
-                if m.user.ID:
-                    asyncio.get_event_loop().create_task(self.receiveMessage(m))
+                asyncio.get_event_loop().create_task(self.receiveMessage(m))
             elif publisher == "SERVER":
                 if m.mtype == Message.MessageType.population:
                     asyncio.get_event_loop().create_task(self.updateUsers())
@@ -256,8 +254,8 @@ class Channel:
                         elif m.payload["title"] == "__i18n_voteBurnTitle":
                             asyncio.get_event_loop().create_task(self.burnoutCommit(m.payload["votingId"]))
                 elif m.mtype == Message.MessageType.system:
-                    self._log.warn("天之聲發言："+msg_list[3])
-                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content="【天之聲】"+m.payload["message"], metionUsers=list(self.users)))
+                    self._log.warn(f"天之聲發言：{msg_list[3]}")
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f'【天之聲】{m.payload["message"]}', metionUsers=list(self.users)))
 
         asyncio.get_event_loop().create_task(self.reConnect())
 
@@ -320,25 +318,10 @@ class Channel:
                         continue
                     basemessage = self.messages[-10] if len(self.messages) > 10 else self.messages[0]
                     if not ((user.ID in self.last_send_IDs and self.last_send_IDs[user.ID] >= basemessage.time) or (user.nickname in self.last_send_Nicknames and self.last_send_Nicknames[user.nickname] >= basemessage.time)):
-                        if self.isNotWelcome(user):
-                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<GS出現了，小心，這是替身攻擊！>", metionUsers=list(self.users)))
+                        if re.match(r"^(誰啊|unknown)#", user.nickname):
+                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content=f"<哈囉@{user.nickname}，本版目前管制中，請取個好名稱方便大家認識你喔>", metionUsers=[user]))
                             self.last_send_Nicknames[user.nickname] = self.last_send_IDs[user.ID] = tzlocal.get_localzone().localize(datetime.now())
-                        elif re.match(r"(誰啊|unknown)", user.nickname):
-                            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=user, content="<哈囉@"+user.nickname+"，本版目前管制中，請取個好名稱方便大家認識你喔>", metionUsers=[user]))
-                            self.last_send_Nicknames[user.nickname] = self.last_send_IDs[user.ID] = tzlocal.get_localzone().localize(datetime.now())
-
             return joined
-
-    def isNotWelcome(self, user: User) -> bool:
-        keywords = self._notwelcomes.json
-        if user.ID in keywords["ID"]:
-            return True
-
-        for name in keywords["name"]:
-            if re.search(name, user.nickname, re.IGNORECASE):
-                return True
-
-        return False
 
     def initMudaValue(self):
         self.mudacounter = 0
@@ -395,6 +378,9 @@ class Channel:
         if len(self.messages) > 100:
             await self.updateMedia(self.messages[:-100], True)
             self.messages = self.messages[-100:]
+
+        if not message.user.ID:
+            return
 
         if redis.sismember(self.redisPerfix+"flags", flag.muda) and message.mtype == Message.MessageType.chat:
             if not redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID) and self.isForbiddenMessage(message):
@@ -850,30 +836,33 @@ class Channel:
             self._log.error(f"刪除檔案{imagepath}失敗")
             self._log.error(e, exc_info=True)
 
-    async def resetmessages(self, vaild):
+    async def resetmessages(self, vaildRule):
         while self.pauseListen:
             await asyncio.sleep(0)
-        validmessages = list(filter(vaild, self.messages))
+        validmessages = list(filter(vaildRule, self.messages))
         if len(validmessages) >= 1:
             self.pauseListen = True
             self.pauseMessage = validmessages[-1]
             oldest = validmessages[0]
-
-            medias = self.medias.copy()
-
-            mudatext=random.choice(["muda", "沒用", "無駄"])
-            for media in medias:
-                user = copy.deepcopy(self.user)
-                user.ID = media.user.ID
-                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=f"{mudatext} {media.url}"), showID=False)
-
-            await self.setMessage(validmessages)
-
             if len(validmessages) < 100:
                 validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
+            await self.setMessage(validmessages)
+        else:
+            validmessages = list(Message() for _ in range(100))
 
-            for m in validmessages:
-                await self.sendMessage(m, showID=False)
+        medias = self.medias.copy()
+        mudatext=random.choice(["muda", "沒用", "無駄"])
+        for media in medias:
+            user = copy.deepcopy(self.user)
+            user.ID = media.user.ID
+            await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=f"{mudatext} {media.url}"), showID=False)
+            
+        for m in validmessages:
+            await self.sendMessage(m, showID=False)
+
+        if self.timeout:
+            self.timeout.cancel()
+            self.timeout = asyncio.get_event_loop().create_task(self.SelfTimeout())
 
     async def vote(self, voteid: str, voteoption: str = "__i18n_forbid"):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])

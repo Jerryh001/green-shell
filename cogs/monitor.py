@@ -67,8 +67,8 @@ class Monitor(commands.Cog):
             return
 
         if defender:
-            logging.info("對"+name+"進行防禦")
-            await self.bot.get_channel(483242913807990806).send("對`"+name+"`進行防禦")
+            logging.info(f"對{name}進行防禦")
+            await self.bot.get_channel(483242913807990806).send(f"對`{name}`進行防禦")
             self.overseeing_list[name] = self.bot.loop.create_task(KMonitor(name, None, self.kekeke.kbot).Oversee(True))
         else:
             channel: discord.TextChannel = next((c for c in self.bot.get_channel(483268757884633088).channels if c.name == name), None)
@@ -119,8 +119,7 @@ class Monitor(commands.Cog):
     async def stop(self, ctx: commands.Context, *, channelname: str):
         try:
             redis.srem("discordbot::overseechannels", channelname)
-            self.overseeing_list[channelname].cancel()
-            self.overseeing_list.pop(channelname)
+            self.overseeing_list.pop(channelname).cancel()
         except KeyError:
             logging.warning(f"{channelname} 不在監視中")
             await ctx.send(f"`{channelname}`不在監視中")
