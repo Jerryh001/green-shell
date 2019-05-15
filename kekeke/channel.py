@@ -101,15 +101,18 @@ class Channel:
         self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
 
     async def SelfTimeout(self):
-        await asyncio.sleep(900)
-        if self.mudaValue:
-            def isValid(m: Message) -> bool:
-                return m.user.ID and m.user.ID not in self.mudausers
-            self._log.info("有殘餘洗版訊息，自動清除")
-            await self.resetmessages(isValid)
-            return
-        else:
-            await self.Close()
+        try:
+            await asyncio.sleep(900)
+            if self.mudaValue:
+                def isValid(m: Message) -> bool:
+                    return m.user.ID and m.user.ID not in self.mudausers
+                self._log.info("有殘餘洗版訊息，自動清除")
+                await self.resetmessages(isValid)
+                return
+            else:
+                await self.Close()
+        except asyncio.CancelledError:
+            pass
 
 
 
@@ -208,6 +211,7 @@ class Channel:
             messages: list = Message.loadjsonlist(data)
             if messages:
                 await self.setMessage(messages)
+                self.initMudaValue()
             self._log.info("更新歷史訊息成功")
         else:
             self._log.warning("更新歷史訊息失敗")
@@ -338,7 +342,6 @@ class Channel:
         self.medias = dict()
         self.last_send_Nicknames = dict()
         self.last_send_IDs = dict()
-        self.initMudaValue()
         await self.updateMedia(self.messages)
 
     async def updateMedia(self, messages: list, pop=False):
@@ -859,6 +862,8 @@ class Channel:
             
         for m in validmessages:
             await self.sendMessage(m, showID=False)
+
+        self.initMudaValue()
 
         if self.timeout:
             self.timeout.cancel()
