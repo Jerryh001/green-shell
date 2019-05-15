@@ -89,10 +89,10 @@ class Monitor(commands.Cog):
             logging.error(f"監視{name}時發生錯誤:")
             logging.error(e, exc_info=True)
             await self.stdout.send(f"監視`{name}`時發生錯誤")
+        logging.info(f"已停止監視{name}")
+        await self.stdout.send(f"已停止監視`{name}`")  # workaround: if stopped by heroku, channel won't pop
         redis.srem("discordbot::overseechannels", name)
         self.overseeing_list.pop(name)
-        logging.info(f"已停止監視{name}")
-        await self.stdout.send(f"已停止監視`{name}`")
 
     @commands.command()
     async def sendall(self, ctx: commands.Context, *, content: str):
