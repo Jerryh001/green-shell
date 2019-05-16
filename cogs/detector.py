@@ -19,11 +19,11 @@ class Detector(commands.Cog):
         self.detecttime = 30
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
-        self._log.log("INIT")
+        self._log.info("INIT")
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self._log.log("READY")
+        self._log.info("READY")
         self.monitor = self.bot.get_cog('Monitor')
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
@@ -35,7 +35,7 @@ class Detector(commands.Cog):
 
     @commands.Cog.listener()
     async def on_resumed(self):
-        self._log.log("RESUME")
+        self._log.info("RESUME")
 
     @commands.command(name="dtime")
     async def _dtime(self, ctx: commands.Context, time: int):
