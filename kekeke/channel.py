@@ -11,6 +11,7 @@ import random
 import re
 import time
 import typing
+from concurrent import futures
 from datetime import datetime
 from queue import Queue
 from shutil import copyfile
@@ -153,7 +154,7 @@ class Channel:
         kerma = int(j[0])
         if self.kerma != kerma:
             if self.kerma > kerma:
-                self._log.info("kerma減少了:"+str(self.kerma)+"->"+str(kerma))
+                self._log.info(f"kerma減少了:{self.kerma}->{kerma}")
             self.kerma = kerma
             if self.mode != self.BotType.observer:
                 await self.updateUsername()
@@ -227,12 +228,12 @@ class Channel:
             if msg_list[0] == "CONNECTED":
                 continue
             if msg_list[0] != "MESSAGE":
-                self._log.info("ignored WS message type:\n"+msg.data)
+                self._log.info(f"未知的websocket訊息種類：\n{msg.data}")
                 continue
             publisher = msg_list[2][len("publisher:"):]
             m = Message.loadjson(msg_list[3])
             if not m:
-                self._log.warning("can't decode message:\n"+msg.data)
+                self._log.warning(f"無法解析訊息：\n{msg.data}")
                 continue
             if self.pauseListen:
                 if m == self.pauseMessage:
@@ -252,6 +253,8 @@ class Channel:
                             asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"], "__i18n_forbid"))
                         elif m.payload["title"] == "__i18n_voteBurnTitle":
                             asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"], "__i18n_burn"))
+                        elif m.payload["title"] == "__i18n_voteMinKermaTitle":
+                            asyncio.get_event_loop().create_task(self.vote(m.payload["votingId"], "__i18n_agree"))
                     elif m.payload["votingState"] == "COMPLETE":
                         if m.payload["title"] == "__i18n_voteForbidTitle":
                             asyncio.get_event_loop().create_task(self.banCommit(m.payload["votingId"]))
@@ -267,7 +270,7 @@ class Channel:
         for i in range(3):
             async with self._session.post(url=url, data=payload, headers=header) as r:
                 if r.status != 200:
-                    self._log.warning("<第"+str(i+1)+"次post失敗> payload="+str(payload)+" url="+url+" header="+str(header))
+                    self._log.warning(f"<第{i+1}次post失敗> payload={str(payload)} url={url} header={str(header)}")
                     await asyncio.sleep(1)
                 else:
                     text = await r.text()
@@ -502,7 +505,7 @@ class Channel:
         content = message.clean_content
 
         for attach in message.attachments:
-            filepath = os.path.join(os.getcwd(), "data/"+str(attach.id)+attach.filename)
+            filepath = os.path.join(os.getcwd(), f"data/{attach.id}{attach.filename}")
             with open(filepath, 'wb') as f:
                 await attach.save(f)
             content += (await self.postImage(filepath))["url"]
@@ -563,7 +566,7 @@ class Channel:
         for i in range(3):
             async with self._session.post(url=url, json=json_, headers=header) as r:
                 if r.status != 200:
-                    self._log.warning("<第"+str(i+1)+"次post失敗> payload="+str(json_)+" url="+url+" header="+str(header))
+                    self._log.warning(f"<第{i+1}次post失敗> payload={str(json_)} url={url} header={str(header)}")
                     await asyncio.sleep(1)
                 else:
                     text = await r.text()
@@ -740,7 +743,7 @@ class Channel:
             times = clip(int(args[1], 0), 0, 100)
             for _ in range(times):
                 await self.sendMessage(Message(), showID=False)
-            self._log.info("發送"+str(times)+"則空白訊息")
+            self._log.info(f"發送{times}則空白訊息")
 
     @command.command(authonly=True, help=".muda <使用者>\n使特定使用者無法發送檔案並清除全部所發送檔案")
     async def muda(self, message: Message, *args):
@@ -867,6 +870,10 @@ class Channel:
 
         if self.timeout:
             self.timeout.cancel()
+            try:
+                await self.timeout
+            except futures.CancelledError:
+                pass
             self.timeout = asyncio.get_event_loop().create_task(self.SelfTimeout())
 
     async def vote(self, voteid: str, voteoption: str = "__i18n_forbid"):

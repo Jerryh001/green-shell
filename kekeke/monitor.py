@@ -72,25 +72,25 @@ class Monitor(object):
             return datetime.datetime(datetime.MINYEAR, 1, 1, tzinfo=datetime.timezone.utc)
 
     async def Oversee(self, defender=False):
-        self._log.info("開始監視 "+self.name)
+        self._log.info(f"開始監視{self.name}")
         await self.bot.subscribe(self.name, defender)
         self.channel: Channel = self.bot.channels[self.name]
         if self.stdout:
             last_time = await self.GetLastMessageTime()
-            self._log.info("取得 "+self.name+" 的歷史訊息")
+            self._log.info(f"取得{self.name}的歷史訊息")
             data = [m for m in self.channel.messages if m.time > last_time] if last_time else self.channel.messages
             if len(data) > 0:
                 async with self.stdout.typing():
                     await self.SendReport(data)
-                self._log.info("更新了 "+self.name+" 的 "+str(len(data))+" 條訊息")
-            self._log.info("開始常駐監聽 "+self.name)
+                self._log.info(f"更新了{self.name}的{len(data)}條訊息")
+            self._log.info(f"開始常駐監聽{self.name}")
             while self.bot.isSubscribe(self.name):
                 m = await self.channel.waitMessage()
                 self._log.debug(m)
                 async with self.stdout.typing():
                     await self.SendReport([m])
         else:
-            self._log.info(self.name+" 目前為無頭模式")
+            self._log.info(f"{self.name}目前為無頭模式")
             while self.bot.isSubscribe(self.name):
                 await asyncio.sleep(0)
 

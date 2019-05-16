@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import time
+from collections import deque
 from datetime import datetime, timezone
 from typing import List
 
@@ -33,20 +34,20 @@ class Channel(object):
 _HP_message_payload = GWTpayload.GWTPayload(["https://kekeke.cc/com.liquable.hiroba.home.gwt.HomeModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLatestSquares"])
 
 
-async def GetHPMessages()->List[Channel]:
+async def GetHPMessages() -> List[Channel]:
     output: List[Channel] = list()
     resp = ""
+
     try:
         async with aiohttp.request("POST", "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService", data=_HP_message_payload.string, headers={"content-type": "text/x-gwt-rpc; charset=UTF-8"}) as r:
             resp = await r.text()
     except:
-        # self._log.error("Fetch kekeke HP failed")
         return output
-
     if resp[:4] == r"//OK":
         data = json.loads(resp[4:])
         strings: List[str] = [None]+data[-3]
-        values: list = data[:-3]
+        values: deque = deque(data[:-3])
+        _ignored = redis.smembers("kekeke::bot::detector::ignoretopic")
         if values.pop():  # java.util.ArrayList/4159755760
             csize = values.pop()
             for _ in range(csize):
@@ -65,11 +66,10 @@ async def GetHPMessages()->List[Channel]:
                     values.pop()  # width
                 values.pop()  # com.liquable.gwt.transport.client.Destination/2061503238
                 ch.name = strings[values.pop()][len("/topic/"):]  # /topic/???
-                if ch.name not in redis.smembers("kekeke::bot::detector::ignoretopic"):
+                if ch.name not in _ignored:
                     output.append(ch)
         if values:
-            _log.warning("values不是空的：")
-            _log.warning(values)
+            _log.warning(f"values不是空的：{str(values)}")
     _log.debug("成功取得所有訊息")
     return output
 
@@ -83,7 +83,7 @@ _detect_ID_list: List[re.Pattern] = list()
 _detect_last_update: datetime = None
 
 
-def updateKeywords()->None:
+def updateKeywords() -> None:
     global _detect_message_list, _detect_username_list, _detect_ID_list, _detect_last_update
     _detect_ID_list = redis.smembers("kekeke::bot::global::silentUsers")
     updatetime = datetime.fromisoformat(redis.get("kekeke::bot::detector::lastupdate"))
@@ -93,7 +93,7 @@ def updateKeywords()->None:
         _detect_message_list = list(map(lambda string: re.compile(string, re.IGNORECASE), redis.sunion("kekeke::bot::detector::message", "kekeke::bot::detector::keyword")))
 
 
-def CheckMessage(message: Message)->bool:
+def CheckMessage(message: Message) -> bool:
     global _detect_message_list, _detect_username_list
 
     for regex in _detect_message_list:  # type:re.Pattern
@@ -108,8 +108,13 @@ def CheckMessage(message: Message)->bool:
     return False
 
 
-async def Detect()->List[Channel]:
+async def Detect() -> List[Channel]:
+    start = time.time()
     channels = await GetHPMessages()
+    end = time.time()
+    cost = end - start
+    if cost > 1:
+        _log.warning(f"讀取時間：{cost}")
     updateKeywords()
     result: List[Channel] = []
     for c in channels:  # type: Channel
