@@ -19,9 +19,11 @@ class Detector(commands.Cog):
         self.detecttime = 30
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
+        self._log.log("INIT")
 
     @commands.Cog.listener()
     async def on_ready(self):
+        self._log.log("READY")
         self.monitor = self.bot.get_cog('Monitor')
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
@@ -30,6 +32,10 @@ class Detector(commands.Cog):
         if self.bot.command_prefix != ".":
             return
         await self.detect()
+
+    @commands.Cog.listener()
+    async def on_resumed(self):
+        self._log.log("RESUME")
 
     @commands.command(name="dtime")
     async def _dtime(self, ctx: commands.Context, time: int):
@@ -54,6 +60,8 @@ class Detector(commands.Cog):
             result = await detector.Detect()
             if result:
                 await self._sendReport(result)
+            else:
+                self._log.debug("kekeke首頁無資料更新")
             await asyncio.sleep(self.detecttime)
 
     async def _sendReport(self, report: typing.List[detector.Channel]):
@@ -92,7 +100,7 @@ class Detector(commands.Cog):
             if embedlist:
                 self._log.info("kekeke首頁已更新")
             else:
-                self._log.debug("kekeke首頁無資料更新")
+                self._log.debug("已發送過，略過所有舊資料")
 
     async def autoDefend(self, name: str):
         if name not in self.monitor.overseeing_list:

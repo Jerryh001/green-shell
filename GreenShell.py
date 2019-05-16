@@ -56,11 +56,11 @@ async def update(ctx, filemessage: DataFile):
         await filemessage.save(filepath)
         s3 = boto3.resource("s3")
         s3.Bucket("cloud-cube").put_object(Key=CUBENAME+"/"+filename, Body=open(filepath, 'rb'))
-        logging.info("更新 "+filename+" 成功")
-        await ctx.send("更新`"+filename+"`成功")
+        logging.info(f"更新{filename}成功")
+        await ctx.send(f"更新`{filename}`成功")
     except:
-        logging.error("更新 "+filename+" 失敗")
-        await ctx.send("更新`"+filename+"`失敗")
+        logging.error(f"更新{filename}失敗")
+        await ctx.send(f"更新`{filename}`失敗")
 
 
 @bot.check_once
@@ -71,7 +71,7 @@ async def _IsAllowRun(ctx: commands.Context):
 @bot.event
 async def on_ready():
     DownloadAllFiles()
-    logging.info(f"Logged in as {bot.user.name}({bot.user.id})")
+    logging.info(f"{bot.user.name}({bot.user.id})已上線")
     await bot.get_channel(483242913807990806).send(f"{bot.user.name}已上線{bot.command_prefix}")
 
 
@@ -98,25 +98,26 @@ async def _eval(ctx: commands.Context, *, cmd: str):
 
 @bot.command()
 async def loglevel(ctx, level: str, logger_name: str = ""):
+    logger = logging.getLogger(logger_name)
+    level_old = logger.level
+    level_new = level.upper()
     try:
-        logger = logging.getLogger(logger_name)
-        level_old = logger.level
-        logger.setLevel(eval("logging."+level.upper()))
-        logging.debug(f"logger {logger} 's level changed from {level_old} to {logger.level}({level.upper()})")
-        await ctx.send("change success")
+        logger.setLevel(eval(f"logging.{level_new}"))
+        logging.debug(f"logger{logger}的等級修改為{level_new}")
+        await ctx.send(f"logger`{logger}`的等級修改為`{level_new}``")
     except:
-        logging.warning(f"change {logger}'s level to {level} failed")
-        await ctx.send("change failed")
+        logging.warning(f"無法把{logger}的等級修改為{level}")
+        await ctx.send(f"無法把`{logger}`的等級修改為`{level}`")
 
 
 async def SIGTERM_exit():
-    await bot.get_channel(483242913807990806).send(bot.user.name+" has stopped by SIGTERM")
-    logging.warning(bot.user.name+" has stopped by SIGTERM")
+    await bot.get_channel(483242913807990806).send(f"{bot.user.name} has stopped by SIGTERM")
+    logging.warning(f"{bot.user.name} has stopped by SIGTERM")
 
 
 def SIG_EXIT(signum, frame):
     time.sleep(5)
-    logging.warning(bot.user.name+" has stopped by SIGTERM-")
+    logging.warning(f"{bot.user.name} has stopped by SIGTERM")
     print("bye")
     time.sleep(5)
     for task in asyncio.Task.all_tasks():

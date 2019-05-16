@@ -118,8 +118,7 @@ class Monitor(commands.Cog):
     @commands.command()
     async def stop(self, ctx: commands.Context, *, channelname: str):
         try:
-            redis.srem("discordbot::overseechannels", channelname)
-            self.overseeing_list.pop(channelname).cancel()
+            self.overseeing_list[channelname].cancel()
         except KeyError:
             logging.warning(f"{channelname} 不在監視中")
             await ctx.send(f"`{channelname}`不在監視中")
