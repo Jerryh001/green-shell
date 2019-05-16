@@ -19,7 +19,6 @@ class Detector(commands.Cog):
         self.detecttime = 30
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
-        self._log.info("INIT")
 
     @commands.Cog.listener()
     async def on_ready(self):

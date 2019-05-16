@@ -31,19 +31,6 @@ class Monitor(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # if message.channel.id == 483268806072991794:
-        #     kekekeid = message.embeds[0].footer.text
-        #     channelname = message.embeds[0].author.name
-        #     if len(kekekeid) == 40 and redis.sismember("kekeke::bot::global::silentUsers", kekekeid) and not redis.sismember("discordbot::overseechannels", channelname):
-        #         bot.loop.create_task(oversee(channelname, True))
-        #         await asyncio.sleep(600)
-        #         try:
-        #             redis.srem("discordbot::overseechannels", channelname)
-        #             overseeing_list[channelname].cancel()
-        #             overseeing_list.pop(channelname)
-        #         except KeyError:
-        #             pass
-        #     return
         if not message.author.bot and message.channel.category and message.channel.category.id == 483268757884633088:
             if message.channel.id != 483268806072991794 and redis.sismember("discordbot::overseechannels", message.channel.name):
                 try:
@@ -120,7 +107,7 @@ class Monitor(commands.Cog):
         try:
             self.overseeing_list[channelname].cancel()
         except KeyError:
-            logging.warning(f"{channelname} 不在監視中")
+            logging.warning(f"{channelname}不在監視中")
             await ctx.send(f"`{channelname}`不在監視中")
         except Exception as e:
             logging.error(f"停止監視{channelname}失敗")
