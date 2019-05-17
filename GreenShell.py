@@ -23,11 +23,11 @@ bot.load_extension('cogs.kekeke')
 
 def DownloadAllFiles():
     s3 = boto3.resource("s3")
-    for obj in s3.Bucket("cloud-cube").objects.filter(Prefix=CUBENAME+"/"):
+    for obj in s3.Bucket("cloud-cube").objects.filter(Prefix=f"{CUBENAME}/"):
         if obj.key[-1] != "/":
             dirname = os.path.dirname(__file__)
             filename = re.search(r"(?<=\/)[^\/]+$", obj.key).group(0)
-            filepath = os.path.join(dirname, "data/"+filename)
+            filepath = os.path.join(dirname, f"data/{filename}")
 
             s3.Bucket("cloud-cube").download_file(obj.key, filepath)
 
@@ -50,12 +50,12 @@ async def update(ctx, filemessage: DataFile):
         await ctx.send("找不到檔案")
         return
     dirname = os.path.dirname(__file__)
-    filename = "data/"+filemessage.filename
+    filename = f"data/{filemessage.filename}"
     filepath = os.path.join(dirname, filename)
     try:
         await filemessage.save(filepath)
         s3 = boto3.resource("s3")
-        s3.Bucket("cloud-cube").put_object(Key=CUBENAME+"/"+filename, Body=open(filepath, 'rb'))
+        s3.Bucket("cloud-cube").put_object(Key=f"{CUBENAME}/{filename}", Body=open(filepath, 'rb'))
         logging.info(f"更新{filename}成功")
         await ctx.send(f"更新`{filename}`成功")
     except:
@@ -130,8 +130,7 @@ if __name__ == "__main__":
         signal.signal(signal.SIGTERM, SIG_EXIT)
         asyncio.get_event_loop().add_signal_handler(signal.SIGTERM, SIG_EXIT)
         bot.loop.add_signal_handler(signal.SIGTERM, SIG_EXIT)
-        logging.info("add handler success")
     except NotImplementedError:
-        logging.warning("add handler failed")  # run in windows
+        pass  # run in windows
 
     bot.run(os.getenv("DISCORD_TOKEN"))

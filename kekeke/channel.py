@@ -61,7 +61,7 @@ class Channel:
         self.medias = dict()
         self.last_send_IDs = dict()
         self.last_send_Nicknames = dict()
-        self.redisPerfix = "kekeke::bot::channel::"+self.name+"::"
+        self.redisPerfix = f"kekeke::bot::channel::{self.name}::"
         self.connectEvents = None
         self.pauseListen = False
         self.pauseMessage = Message()
@@ -124,14 +124,14 @@ class Channel:
                 redis.smove("kekeke::bot::GUIDpool::using", "kekeke::bot::GUIDpool", self.GUID)
         if self.connectEvents and not self.connectEvents.done():
             self.connectEvents.cancel()
+            try:
+                await self.connectEvents
+            except asyncio.CancelledError:
+                pass
         if self.ws and not self.ws.closed:
             await self.ws.close()
         if self._session and not self._session.closed:
             await self._session.close()
-        try:
-            await self.connectEvents
-        except asyncio.CancelledError:
-            pass
 
     async def reConnect(self):
         await self.Close(stop=False)

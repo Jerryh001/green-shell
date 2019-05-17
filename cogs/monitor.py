@@ -56,7 +56,7 @@ class Monitor(commands.Cog):
 
         if defender:
             logging.info(f"對{name}進行防禦")
-            await self.bot.get_channel(483242913807990806).send(f"對`{name}`進行防禦")
+            await self.stdout.send(f"對`{name}`進行防禦")
             self.overseeing_list[name] = asyncio.get_event_loop().create_task(KMonitor(name, None, self.kekeke.kbot).Oversee(True))
         else:
             channel: discord.TextChannel = next((c for c in self.bot.get_channel(483268757884633088).channels if c.name == name), None)
