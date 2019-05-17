@@ -99,7 +99,6 @@ async def _eval(ctx: commands.Context, *, cmd: str):
 @bot.command()
 async def loglevel(ctx, level: str, logger_name: str = ""):
     logger = logging.getLogger(logger_name)
-    level_old = logger.level
     level_new = level.upper()
     try:
         logger.setLevel(eval(f"logging.{level_new}"))

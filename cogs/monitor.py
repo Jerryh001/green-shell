@@ -1,4 +1,5 @@
 
+import asyncio
 import logging
 from concurrent import futures
 
@@ -23,9 +24,9 @@ class Monitor(commands.Cog):
         redis.sunionstore("kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool::using")
         redis.delete("kekeke::bot::GUIDpool::using")
         for channelname in redis.smembers("discordbot::overseechannels"):
-            self.bot.loop.create_task(self.oversee(channelname))
+            asyncio.get_event_loop().create_task(self.oversee(channelname))
         try:
-            self.bot.loop.create_task(self.train(int(redis.get("kekeke::bot::training::number"))))
+            asyncio.get_event_loop().create_task(self.train(int(redis.get("kekeke::bot::training::number"))))
         except ValueError:
             pass
 
@@ -42,7 +43,7 @@ class Monitor(commands.Cog):
     @commands.command(name="train")
     async def _train(self, ctx: commands.Context, *, num: int):
         redis.set("kekeke::bot::training::number", num)
-        self.bot.loop.create_task(self.train(num))
+        asyncio.get_event_loop().create_task(self.train(num))
 
     async def train(self, num: int):
         await self.kekeke.kbot.train(num)
@@ -56,12 +57,12 @@ class Monitor(commands.Cog):
         if defender:
             logging.info(f"對{name}進行防禦")
             await self.bot.get_channel(483242913807990806).send(f"對`{name}`進行防禦")
-            self.overseeing_list[name] = self.bot.loop.create_task(KMonitor(name, None, self.kekeke.kbot).Oversee(True))
+            self.overseeing_list[name] = asyncio.get_event_loop().create_task(KMonitor(name, None, self.kekeke.kbot).Oversee(True))
         else:
             channel: discord.TextChannel = next((c for c in self.bot.get_channel(483268757884633088).channels if c.name == name), None)
             if not channel:
                 logging.warning(f"{name}頻道不存在")
-            self.overseeing_list[name] = self.bot.loop.create_task(KMonitor(name, channel, self.kekeke.kbot).Oversee())
+            self.overseeing_list[name] = asyncio.get_event_loop().create_task(KMonitor(name, channel, self.kekeke.kbot).Oversee())
             redis.sadd("discordbot::overseechannels", name)
 
         try:
@@ -88,11 +89,11 @@ class Monitor(commands.Cog):
 
     @commands.command(name="oversee", aliases=["o"])
     async def _oversee(self, ctx: commands.Context, *, channelname: str):
-        self.bot.loop.create_task(self.oversee(channelname))
+        asyncio.get_event_loop().create_task(self.oversee(channelname))
 
     @commands.command(aliases=["d"])
     async def defend(self, ctx: commands.Context, *, channelname: str):
-        self.bot.loop.create_task(self.oversee(channelname, True))
+        asyncio.get_event_loop().create_task(self.oversee(channelname, True))
 
     @_oversee.before_invoke
     async def _BeforeOversee(self, ctx: commands.Context):

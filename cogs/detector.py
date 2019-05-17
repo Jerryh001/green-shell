@@ -1,8 +1,8 @@
 import asyncio
 import logging
 import typing
+from concurrent import futures
 from datetime import datetime
-from os import getenv
 
 import discord
 import tzlocal
@@ -26,15 +26,12 @@ class Detector(commands.Cog):
         self.monitor = self.bot.get_cog('Monitor')
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
-        if redis.exists("kekeke::detecttime"):
-            self.detecttime = int(redis.get("kekeke::detecttime"))
-        if self.bot.command_prefix != ".":
-            return
-        await self.detect()
+        asyncio.get_event_loop().create_task(self.autoDetect())
 
     @commands.Cog.listener()
     async def on_resumed(self):
         self._log.info("RESUME")
+        asyncio.get_event_loop().create_task(self.autoDetect())
 
     @commands.command(name="dtime")
     async def _dtime(self, ctx: commands.Context, time: int):
@@ -49,10 +46,21 @@ class Detector(commands.Cog):
         self._log.info("開始進行kekeke首頁監視")
         await self.detect()
 
+    async def autoDetect(self):
+        if redis.exists("kekeke::detecttime"):
+            self.detecttime = int(redis.get("kekeke::detecttime"))
+        if self.bot.command_prefix != ".":
+            return
+        await self.detect()
+
     async def detect(self):
         if self.detectEvent:
             self.detectEvent.cancel()
-        self.detectEvent = self.bot.loop.create_task(self._detectRunner())
+            try:
+                await self.detectEvent
+            except futures.CancelledError:
+                pass
+        self.detectEvent = asyncio.get_event_loop().create_task(self._detectRunner())
 
     async def _detectRunner(self):
         while True:
@@ -75,7 +83,7 @@ class Detector(commands.Cog):
                 if not lastuserID or lastuserID != m.user.ID:
                     if embed:
                         if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
-                            self.bot.loop.create_task(self.autoDefend(embed.author.name))
+                            asyncio.get_event_loop().create_task(self.autoDefend(embed.author.name))
                         else:
                             embedlist.append(embed)
                     embed = discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()))
@@ -88,7 +96,7 @@ class Detector(commands.Cog):
                 embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {m.content}", inline=False)
             if embed:
                 if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
-                    self.bot.loop.create_task(self.autoDefend(embed.author.name))
+                    asyncio.get_event_loop().create_task(self.autoDefend(embed.author.name))
                 else:
                     embedlist.append(embed)
             for embed in embedlist:

@@ -1,4 +1,6 @@
 
+import asyncio
+
 import discord
 from discord.ext import commands
 
@@ -31,7 +33,7 @@ class Kekeke(commands.Cog):
                 name = ""
                 try:
                     name = message.embeds[0].author.name
-                    self.bot.loop.create_task(self.monitor.oversee(name, True))
+                    asyncio.get_event_loop().create_task(self.monitor.oversee(name, True))
                 except:
                     await self.stdout.send(f"無法對`{name}`進行防禦")
             if payload.emoji.name == r"🇲":
@@ -63,7 +65,7 @@ class Kekeke(commands.Cog):
                 self.monitor.overseeing_list[name].cancel()
                 self.monitor.overseeing_list.pop(name)
             except:
-                await self.bot.get_channel(483242913807990806).send(f"無法停止對`{name}`的防禦")
+                await self.stdout.send(f"無法停止對`{name}`的防禦")
 
 
 def setup(bot: commands.Bot):
