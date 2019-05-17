@@ -102,11 +102,11 @@ async def loglevel(ctx, level: str, logger_name: str = ""):
     level_new = level.upper()
     try:
         logger.setLevel(eval(f"logging.{level_new}"))
-        logging.debug(f"logger{logger}的等級修改為{level_new}")
-        await ctx.send(f"logger`{logger}`的等級修改為`{level_new}``")
+        logging.debug(f"logger{logger_name}的等級修改為{level_new}")
+        await ctx.send(f"logger`{logger_name}`的等級修改為`{level_new}`")
     except:
-        logging.warning(f"無法把{logger}的等級修改為{level}")
-        await ctx.send(f"無法把`{logger}`的等級修改為`{level}`")
+        logging.warning(f"無法把{logger_name}的等級修改為{level}")
+        await ctx.send(f"無法把`{logger_name}`的等級修改為`{level}`")
 
 
 async def SIGTERM_exit():

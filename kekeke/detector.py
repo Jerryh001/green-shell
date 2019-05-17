@@ -109,12 +109,7 @@ def CheckMessage(message: Message) -> bool:
 
 
 async def Detect() -> List[Channel]:
-    start = time.time()
     channels = await GetHPMessages()
-    end = time.time()
-    cost = end - start
-    if cost > 1:
-        _log.warning(f"讀取時間：{cost}")
     updateKeywords()
     result: List[Channel] = []
     for c in channels:  # type: Channel
