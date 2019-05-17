@@ -130,6 +130,11 @@ class Channel:
             await self.ws.close()
         if self._session and not self._session.closed:
             await self._session.close()
+        try:
+            await self.connectEvents
+        except asyncio.CancelledError:
+            pass
+
 
     async def reConnect(self):
         await self.Close(stop=False)
@@ -141,7 +146,12 @@ class Channel:
             await self.updateKerma()
             if self.mode == self.BotType.training and self.kerma >= 80:
                 redis.smove("kekeke::bot::training::GUIDs::using", "kekeke::bot::GUIDpool", self.GUID)
-                self._log.info("GUID:"+self.GUID+"的KERMA已達80，尋找新GUID並重新連線")
+                self._log.info(f"GUID:{self.GUID}的KERMA已達80，尋找新GUID並重新連線")
+                self.GUID = self.getGUID()
+                break
+            if self.mode == self.BotType.defender and self.kerma < 80:
+                redis.smove("kekeke::bot::GUIDpool::using", "kekeke::bot::training::GUIDs", self.GUID)
+                self._log.error(f"GUID:{self.GUID}的KERMA不足80，尋找新GUID並重新連線")
                 self.GUID = self.getGUID()
                 break
             await asyncio.sleep(300)
@@ -179,7 +189,7 @@ class Channel:
 
     async def subscribe(self):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
-        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [self.GUID if self.GUID else None, None, "com.liquable.gwt.transport.client.Destination/2061503238", "/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [self.GUID if self.GUID else None, None, "com.liquable.gwt.transport.client.Destination/2061503238", f"/topic/{self.name}"])
         while True:
             data = await self.post(payload=_payload.string)
             if data:
@@ -198,13 +208,13 @@ class Channel:
                     self._log.error("沒有足夠Kerma的GUID可用，隨便創建一個")
                 redis.set(self.redisPerfix+"botGUID", self.GUID)
         self.user.ID = data[-1]
-        await self.ws.send_str('CONNECT\nlogin:'+json.dumps({"accessToken": data[2], "nickname": self.user.nickname}))
-        await self.ws.send_str('SUBSCRIBE\ndestination:/topic/{0}'.format(self.name))
-        self._log.info("subscribe "+self.name)
+        await self.ws.send_str(f'CONNECT\nlogin:{json.dumps({"accessToken": data[2], "nickname": self.user.nickname})}')
+        await self.ws.send_str(f'SUBSCRIBE\ndestination:/topic/{self.name}')
+        self._log.info(f"subscribe {self.name}")
 
     async def initMessages(self, channel: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLeftMessages"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
 
         data = await self.post(payload=_payload.string)
         if data:
@@ -302,7 +312,7 @@ class Channel:
 
     async def updateUsers(self) -> typing.Set[User]:
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         j = await self.post(payload=_payload.string)
         new_users = set()
         if j:
@@ -470,7 +480,7 @@ class Channel:
         if message.metionUsers:
             for muser in message.metionUsers:
                 message_obj["payload"]["replyPublicIds"].append(muser.ID)
-        payload = 'SEND\ndestination:/topic/{0}\n\n'.format(self.name)+json.dumps(message_obj, ensure_ascii=False)
+        payload = f'SEND\ndestination:/topic/{self.name}\n\n{json.dumps(message_obj, ensure_ascii=False)}'
         await self.ws.send_str(payload)
 
     async def waitMessage(self) -> Message:
@@ -549,7 +559,7 @@ class Channel:
         if not thumb:
             thumb = await self.convertToThumbnail(url)
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateSquareThumb"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.square.SquareThumb/3372091550", [int(thumb["height"]), thumb["url"], int(thumb["width"])])
         await self.post(payload=_payload.string)
 
@@ -577,7 +587,7 @@ class Channel:
 
     async def rename(self, user: User, newname: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", user.color if user.color != "" else None, user.ID, newname, user.ID])
         await self.post(payload=_payload.string)
 
@@ -681,7 +691,7 @@ class Channel:
     async def ban(self, message: Message, *args):
         target: User = message.metionUsers[0]
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
         _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動封鎖】"], regonly=True)
@@ -692,7 +702,7 @@ class Channel:
         if len(message.metionUsers) > 0:
             target: User = message.metionUsers[0]
             _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForBurn"])
-            _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+            _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
             _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動燒毀10 KERMA】"], regonly=True)
@@ -878,21 +888,21 @@ class Channel:
 
     async def vote(self, voteid: str, voteoption: str = "__i18n_forbid"):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
         _payload.AddPara("java.util.Set", ["java.util.HashSet/3273092938", "https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "java.lang.String/2004016611", voteoption], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
     async def banCommit(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyForbidByVoting"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
         _payload.AddPara("com.liquable.hiroba.gwt.client.vote.ForbidOption/647536008", [0], rawpara=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
     async def burnoutCommit(self, voteid: str):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyBurnByVoting"])
-        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", ["/topic/{0}".format(self.name)])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
         for _ in range(10):
             await self.post(payload=_payload.string, url=self._vote_url)
