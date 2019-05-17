@@ -50,8 +50,8 @@ class Channel:
     def __init__(self, name: str, mode: BotType = BotType.observer):
         self.mode = mode
         self.name = name
-        self.user = User(("小小綠盾" if self.mode == self.BotType.training else "綠盾防禦系統")+"#Bot",anchorUsername="__BOT__")
-        self._log = logging.getLogger((__name__+"@"+self.name))
+        self.user = User(f'{("小小綠盾" if self.mode == self.BotType.training else "綠盾防禦系統")}#Bot', anchorUsername="__BOT__")
+        self._log = logging.getLogger((f"{__name__}@{self.name}"))
         self.session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
         self.messages = list()
@@ -115,8 +115,6 @@ class Channel:
         except asyncio.CancelledError:
             pass
 
-
-
     async def Close(self, stop=True):
         if stop:
             self.closed = True
@@ -134,7 +132,6 @@ class Channel:
             await self.connectEvents
         except asyncio.CancelledError:
             pass
-
 
     async def reConnect(self):
         await self.Close(stop=False)
@@ -197,7 +194,7 @@ class Channel:
             else:
                 await asyncio.sleep(5)
         data = data[-3]
-        if data[1] == "com.liquable.hiroba.gwt.client.square.AnchorSquareView/1913755809":#AnchorSquare
+        if data[1] == "com.liquable.hiroba.gwt.client.square.AnchorSquareView/1913755809":  # AnchorSquare
             raise ValueError()
         if not self.GUID:
             self.GUID = data[1]
@@ -431,7 +428,7 @@ class Channel:
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember(self.redisPerfix+"reactionkeywords::"+key), metionUsers=[message.user]), showID=False)
             if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
                 args = message.content[len(self.commendPrefix):].split()
-                if(args[0] in command.commands):
+                if(args and args[0] in command.commands):
                     asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
                 else:
                     self._log.warning("命令"+args[0]+"不存在")
@@ -591,12 +588,11 @@ class Channel:
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", user.color if user.color != "" else None, user.ID, newname, user.ID])
         await self.post(payload=_payload.string)
 
-    def getUserText(self, user: User)->str:
+    def getUserText(self, user: User) -> str:
         return "使用者("+user.ID[:5]+")"+user.nickname
 
 
 ############################################commands#######################################
-
 
     @command.command(help=".help\n顯示這個訊息")
     async def help(self, message: Message, *args):
@@ -852,6 +848,16 @@ class Channel:
             self._log.error(f"刪除檔案{imagepath}失敗")
             self._log.error(e, exc_info=True)
 
+    @command.command(authonly=True, help='.pluscheck\n用一種不科學的方法檢查有幾個人裝kekeke plus')
+    async def pluscheck(self, message: Message, *args):
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForNormal"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.vote.NormalConfig/2691735772", ["com.liquable.hiroba.gwt.client.vote.NormalConfig$DurationConfig/1199471335", 0, "com.liquable.hiroba.gwt.client.vote.MultipleChoiceConfig/1007198302", 0])
+        _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
+        _payload.AddPara("java.lang.String/2004016611", ["你有裝kekeke plus嗎？"], regonly=True)
+        _payload.AddPara("java.util.List", ["java.util.ArrayList/4159755760", 3, "java.lang.String/2004016611", "我是智障", "java.lang.String/2004016611", "沒有", "java.lang.String/2004016611", "有"], regonly=True)
+        await self.post(payload=_payload.string, url=self._vote_url)
+
     async def resetmessages(self, vaildRule):
         while self.pauseListen:
             await asyncio.sleep(0)
@@ -867,12 +873,12 @@ class Channel:
             validmessages = list(Message() for _ in range(100))
 
         medias = self.medias.copy()
-        mudatext=random.choice(["muda", "沒用", "無駄"])
+        mudatext = random.choice(["muda", "沒用", "無駄"])
         for media in medias:
             user = copy.deepcopy(self.user)
             user.ID = media.user.ID
             await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=f"{mudatext} {media.url}"), showID=False)
-            
+
         for m in validmessages:
             await self.sendMessage(m, showID=False)
 
