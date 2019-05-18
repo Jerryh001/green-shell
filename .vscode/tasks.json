@@ -6,8 +6,59 @@
         {
             "label": "run",
             "type": "shell",
-            "command": "heroku run -a green-shell-beta -- worker",
+            "command": "heroku",
+            "args": [
+                "run",
+                "-a",
+                "green-shell-beta",
+                "--",
+                "worker"
+            ],
             "problemMatcher": []
-        }
+        },
+        {
+            "label": "forward",
+            "type": "shell",
+            "isBackground": true,
+            "command": "heroku",
+            "args": [
+                "ps:forward",
+                "5678",
+                "-a",
+                "green-shell-beta",
+                "-d",
+                "worker.1"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "clear": true,
+                "focus": true
+            },
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "^Establishing credentials",
+                        "endsPattern": "to stop port fowarding$",
+                    }
+                }
+            ]
+        },
+        {
+            "label": "stop forward",
+            "type": "process",
+            "command": "${command:workbench.action.tasks.terminate}",
+            "args": [
+                "forward"
+            ]
+        },
     ]
 }

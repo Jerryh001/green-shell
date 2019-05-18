@@ -15,7 +15,9 @@
                     "localRoot": "${workspaceFolder}",
                     "remoteRoot": "."
                 }
-            ]
+            ],
+            "preLaunchTask": "forward",
+            "postDebugTask": "stop forward"
         },
         {
             "name": "Python: Current File",

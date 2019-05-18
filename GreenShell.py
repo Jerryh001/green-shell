@@ -92,7 +92,7 @@ async def hi(ctx: commands.Context):
 async def _eval(ctx: commands.Context, *, cmd: str):
     try:
         ret = eval(cmd)
-        logging.info(f"eval({cmd})成功，返回:\n{ret}")
+        logging.info(f"eval({cmd})成功，返回：{ret}")
         await ctx.send(f"`{ret}`")
     except:
         logging.warning(f"eval({cmd}) 失敗")
