@@ -9,11 +9,14 @@ from concurrent import futures
 
 import boto3
 import discord
+import ptvsd
 from discord.ext import commands
 
 from kekeke.bot import Bot as KBot
 from kekeke.monitor import Monitor
 from kekeke.red import redis
+
+ptvsd.enable_attach(address=('localhost', 5678), redirect_output=True)
 
 CUBENAME = re.search(r"(?<=/)[^/]+$", os.getenv("CLOUDCUBE_URL"), re.IGNORECASE).group(0)
 bot = commands.Bot(command_prefix=os.getenv("DISCORD_PREFIX"), owner_id=152965086951112704)
