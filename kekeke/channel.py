@@ -425,16 +425,17 @@ class Channel:
                 await self.isSomethingAttack(message)
             for key in redis.smembers(self.redisPerfix+"reactionkeywords"):
                 if re.search(key, message.content):
-                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember(self.redisPerfix+"reactionkeywords::"+key), metionUsers=[message.user]), showID=False)
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember(f"{self.redisPerfix}reactionkeywords::{key}"), metionUsers=[message.user]), showID=False)
             if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
                 args = message.content[len(self.commendPrefix):].split()
-                if(args and args[0] in command.commands):
-                    asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
-                else:
-                    self._log.warning("命令"+args[0]+"不存在")
+                if args:
+                    if(args[0] in command.commands):
+                        asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
+                    else:
+                        self._log.warning(f"命令{args[0]}不存在")
 
     def getSomethingAttackText(self, text: str):
-        t = text+"！"
+        t = f"{text}！"
         length = len(t)
         lines = math.ceil(len(t)/7)
         result = ""
@@ -464,7 +465,7 @@ class Channel:
     async def sendMessage(self, message: Message, *, showID=True, escape=True):
         message_obj = {
             "senderPublicId": message.user.ID,
-            "senderNickName": (message.user.ID[:5]+"#" if showID else "")+message.user.nickname,
+            "senderNickName": (f"{message.user.ID[:5]}#" if showID else "")+message.user.nickname,
             "anchorUsername": message.user.anchorUsername,
             "content": html.escape(message.content) if escape else message.content,
             "date":  str(int(message.time.timestamp()*1000)),
@@ -507,7 +508,7 @@ class Channel:
             kcolor = redis.hget("discordbot::users::kekekecolor", message.author.id)
             user.color = kcolor if kcolor else ""
         else:
-            user.nickname = message.author.display_name+"#Bot"
+            user.nickname = f"{message.author.display_name}#Bot"
 
         content = message.clean_content
 
@@ -547,12 +548,12 @@ class Channel:
     async def convertToThumbnail(self, url: str) -> object:
         thumb = await self.postJson({"url": url}, url="https://kekeke.cc/com.liquable.hiroba.springweb/storage/store-thumbnail")
         for k, v in thumb.items():
-            redis.hset(self.redisGlobalPerfix+"logothumbnailurl", k, v)
-        redis.expire(self.redisGlobalPerfix+"logothumbnailurl", 518400)
+            redis.hset(f"{self.redisGlobalPerfix}logothumbnailurl", k, v)
+        redis.expire(f"{self.redisGlobalPerfix}logothumbnailurl", 518400)
         return thumb
 
     async def updateThumbnail(self, url: str):
-        thumb = redis.hgetall(self.redisGlobalPerfix+"logothumbnailurl")
+        thumb = redis.hgetall(f"{self.redisGlobalPerfix}logothumbnailurl")
         if not thumb:
             thumb = await self.convertToThumbnail(url)
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateSquareThumb"])
@@ -591,6 +592,19 @@ class Channel:
     def getUserText(self, user: User) -> str:
         return "使用者("+user.ID[:5]+")"+user.nickname
 
+    def getUserLevel(self, user: User) -> str:
+        if re.search("#Bot", user.nickname):
+            return "bot"
+        if redis.sismember(f"{self.redisGlobalPerfix}auth",user.nickname):
+            return "gauth"
+        if redis.sismember(f"{self.redisPerfix}auth",user.nickname):
+            return "auth"
+        if redis.sismember(f"{self.redisPerfix}members",user.nickname):
+            return "member"
+        if redis.sismember(f"{self.redisGlobalPerfix}silentUsers",user.nickname):
+            return "silent"
+        return "unknown"
+
 
 ############################################commands#######################################
 
@@ -598,7 +612,8 @@ class Channel:
     async def help(self, message: Message, *args):
         texts = []
         for com in command.commands:
-            texts.append(command.commands[com].help+"\n認證成員限定："+("是" if command.commands[com].authonly else "否")+"\n")
+            authonlytext="是" if command.commands[com].authonly else "否"
+            texts.append(f"{command.commands[com].help}\n認證成員限定：{authonlytext}\n")
         await self.sendTextImage("\n".join(texts), message.user)
 
     @command.command(help=".status\n顯示目前在線上的成員列表")
@@ -614,11 +629,11 @@ class Channel:
             if re.search("#Bot", user.nickname):
                 continue
             if user.ID in gauth or user.ID in auths:
-                authtext.append("("+user.ID[:5]+")"+user.nickname)
+                authtext.append(f"({user.ID[:5]}){user.nickname}")
             elif user.ID in members:
-                membertext.append("("+user.ID[:5]+")"+user.nickname)
+                membertext.append(f"({user.ID[:5]}){user.nickname}")
             else:
-                unknowntext.append("("+user.ID[:5]+")"+user.nickname)
+                unknowntext.append(f"({user.ID[:5]}){user.nickname}")
         if authtext:
             texts.append("認證成員：")
             texts.extend(authtext)
@@ -629,6 +644,22 @@ class Channel:
             texts.append("未知使用者：")
             texts.extend(unknowntext)
         await self.sendTextImage("\n".join(texts), message.user)
+    
+    @command.command(help=".whois <使用者>\n分辨對象的身分類型")
+    async def whois(self, message: Message, *args):
+        level=self.getUserLevel(message.metionUsers[0])
+        result=f"({message.metionUsers[0].ID[:5]}){message.metionUsers[0].nickname}是"
+        if level=="bot":
+            result+="機器人"
+        elif level=="gauth" or level =="auth":
+            result+="認證成員"
+        elif level=="member":
+            result+="一般成員"
+        elif level=="silent":
+            result+="洗版仔"
+        else:
+            result+="未知使用者"
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
 
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
@@ -644,7 +675,7 @@ class Channel:
         for media in medias_to_remove:
             user = copy.deepcopy(media.user)
             user.nickname = self.user.nickname
-            await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content="delete "+media.url), showID=False)
+            await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=f"delete {media.url}"), showID=False)
 
     @command.command(alias="rename", help=".rename <新名稱>\n修改自己的使用者名稱，只在使用者列表有效")
     async def command_rename(self, message: Message, *args):
@@ -652,28 +683,28 @@ class Channel:
 
     @command.command(help=".member (add/remove) <使用者>\n將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令\n一般成員不可修改認證成員身分\n若不指定add/remove則自動判斷")
     async def member(self, message: Message, *args):
-        ismember = redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID)
+        ismember = redis.sismember(f"{self.redisPerfix}members", message.metionUsers[0].ID)
         result = ""
         usertext = self.getUserText(message.metionUsers[0])
         if ismember:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
-                redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
-                result = "✔️成功將"+usertext+"從一般成員移除"
+                redis.srem(f"{self.redisPerfix}members", message.metionUsers[0].ID)
+                result = f"✔️成功將{usertext}從一般成員移除"
         else:
             if len(args) == 1 or (len(args) == 2 and args[0] == "add"):
-                if redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID):
-                    if redis.sismember(self.redisPerfix+"auth", message.user.ID):
-                        redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
-                        redis.sadd(self.redisPerfix+"members", message.metionUsers[0].ID)
-                        result = "✔️成功將"+usertext+"從認證成員變為一般成員"
+                if redis.sismember(f"{self.redisPerfix}auth", message.metionUsers[0].ID):
+                    if redis.sismember(f"{self.redisPerfix}auth", message.user.ID):
+                        redis.srem(f"{self.redisPerfix}auth", message.metionUsers[0].ID)
+                        redis.sadd(f"{self.redisPerfix}members", message.metionUsers[0].ID)
+                        result = f"✔️成功將{usertext}從認證成員變為一般成員"
                     else:
-                        result = "❌不能將"+usertext+"從認證成員變為一般成員，對方擁有較高的權限"
+                        result = f"❌不能將{usertext}從認證成員變為一般成員，對方擁有較高的權限"
                 else:
                     redis.sadd(self.redisPerfix+"members", message.metionUsers[0].ID)
-                    result = "✔️成功將"+usertext+"變為一般成員"
+                    result = f"✔️成功將{usertext}變為一般成員"
 
         if not result:
-            result = "❌操作錯誤，"+usertext+"維持原身分"
+            result = f"❌操作錯誤，{usertext}維持原身分"
 
         await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
 
@@ -690,7 +721,7 @@ class Channel:
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
-        _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動封鎖】"], regonly=True)
+        _payload.AddPara("java.lang.String/2004016611", [f"【由{message.user.nickname}發起，本投票通過時自動封鎖】"], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
     @command.command(help='.burn <使用者>\n發起燒毀特定使用者10 KERMA的投票')
@@ -701,7 +732,7 @@ class Channel:
             _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
-            _payload.AddPara("java.lang.String/2004016611", ["【本投票通過時自動燒毀10 KERMA】"], regonly=True)
+            _payload.AddPara("java.lang.String/2004016611", [f"【由{message.user.nickname}發起，本投票通過時自動燒毀KERMA】"], regonly=True)
             await self.post(payload=_payload.string, url=self._vote_url)
 
     @command.command(help=".autotalk\n啟用/停用自動發送訊息功能")
@@ -729,17 +760,17 @@ class Channel:
         if isauth:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
                 redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
-                result = "✔️成功將"+usertext+"從認證成員移除"
+                result = f"✔️成功將{usertext}從認證成員移除"
         else:
             if len(args) == 1 or (len(args) == 2 and args[0] == "add"):
                 redis.sadd(self.redisPerfix+"auth", message.metionUsers[0].ID)
                 if redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID):
                     redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
-                    result = "✔️成功將"+usertext+"從一般成員變為認證成員"
+                    result = f"✔️成功將{usertext}從一般成員變為認證成員"
                 else:
-                    result = "✔️成功將"+usertext+"變為認證成員"
+                    result = f"✔️成功將{usertext}變為認證成員"
         if not result:
-            result = "❌操作錯誤，"+usertext+"維持原身分"
+            result = f"❌操作錯誤，{usertext}維持原身分"
 
         await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
 

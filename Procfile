@@ -1,1 +1,1 @@
-worker: python GreenShell.py --port 5678
+worker: python GreenShell.py
