@@ -301,10 +301,10 @@ class Channel:
 
     async def updateFlags(self, pull=False):
         if pull:
-            self.flags = redis.smembers(self.redisPerfix+"flags")
+            self.flags = redis.smembers(f"{self.redisPerfix}flags")
         else:
-            redis.delete(self.redisPerfix+"flags")
-            redis.sadd(self.redisPerfix+"flags", self.flags)
+            redis.delete(f"{self.redisPerfix}flags")
+            redis.sadd(f"{self.redisPerfix}flags", self.flags)
         await self.updateUsername()
 
     async def updateUsers(self) -> typing.Set[User]:
@@ -395,7 +395,7 @@ class Channel:
         if not message.user.ID:
             return
 
-        if redis.sismember(self.redisPerfix+"flags", flag.muda) and message.mtype == Message.MessageType.chat:
+        if flag.muda in self.flags and message.mtype == Message.MessageType.chat:
             if not redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID) and self.isForbiddenMessage(message):
                 await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
 
@@ -489,11 +489,13 @@ class Channel:
         return self.message_queue.get()
 
     async def toggleFlag(self, flag: str):
-        if redis.sismember(self.redisPerfix+"flags", flag):
-            redis.srem(self.redisPerfix+"flags", flag)
+        if redis.sismember(f"{self.redisPerfix}flags", flag):
+            redis.srem(f"{self.redisPerfix}flags", flag)
+            self.flags.remove(flag)
         else:
-            redis.sadd(self.redisPerfix+"flags", flag)
-        await self.updateFlags(pull=True)
+            redis.sadd(f"{self.redisPerfix}flags", flag)
+            self.flags.add(flag)
+        # await self.updateFlags(pull=True)
 
     async def say(self, content: str):
         message = Message(Message.MessageType.chat, content=content, user=self.user)
@@ -595,13 +597,13 @@ class Channel:
     def getUserLevel(self, user: User) -> str:
         if re.search("#Bot", user.nickname):
             return "bot"
-        if redis.sismember(f"{self.redisGlobalPerfix}auth",user.ID):
+        if redis.sismember(f"{self.redisGlobalPerfix}auth", user.ID):
             return "gauth"
-        if redis.sismember(f"{self.redisPerfix}auth",user.ID):
+        if redis.sismember(f"{self.redisPerfix}auth", user.ID):
             return "auth"
-        if redis.sismember(f"{self.redisPerfix}members",user.ID):
+        if redis.sismember(f"{self.redisPerfix}members", user.ID):
             return "member"
-        if redis.sismember(f"{self.redisGlobalPerfix}silentUsers",user.ID):
+        if redis.sismember(f"{self.redisGlobalPerfix}silentUsers", user.ID):
             return "silent"
         return "unknown"
 
@@ -612,7 +614,7 @@ class Channel:
     async def help(self, message: Message, *args):
         texts = []
         for com in command.commands:
-            authonlytext="是" if command.commands[com].authonly else "否"
+            authonlytext = "是" if command.commands[com].authonly else "否"
             texts.append(f"{command.commands[com].help}\n認證成員限定：{authonlytext}\n")
         await self.sendTextImage("\n".join(texts), message.user)
 
@@ -644,21 +646,21 @@ class Channel:
             texts.append("未知使用者：")
             texts.extend(unknowntext)
         await self.sendTextImage("\n".join(texts), message.user)
-    
+
     @command.command(help=".whois <使用者>\n分辨對象的身分類型")
     async def whois(self, message: Message, *args):
-        level=self.getUserLevel(message.metionUsers[0])
-        result=f"({message.metionUsers[0].ID[:5]}){message.metionUsers[0].nickname}是"
-        if level=="bot":
-            result+="機器人"
-        elif level=="gauth" or level =="auth":
-            result+="認證成員"
-        elif level=="member":
-            result+="一般成員"
-        elif level=="silent":
-            result+="洗版仔"
+        level = self.getUserLevel(message.metionUsers[0])
+        result = f"({message.metionUsers[0].ID[:5]}){message.metionUsers[0].nickname}是"
+        if level == "bot":
+            result += "機器人"
+        elif level == "gauth" or level == "auth":
+            result += "認證成員"
+        elif level == "member":
+            result += "一般成員"
+        elif level == "silent":
+            result += "洗版仔"
         else:
-            result+="未知使用者"
+            result += "未知使用者"
         await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
 
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
@@ -802,6 +804,13 @@ class Channel:
             def isValid(m: Message) -> bool:
                 return m.user not in message.metionUsers
             await self.resetmessages(isValid)
+
+    @command.command(authonly=True, help='.protect\n將在場有發言的人加為成員並開啟automuda')
+    async def protect(self, message: Message, *args):
+        for m in self.messages:
+            if self.getUserLevel(m.user) == "unknown":
+                redis.sadd(f"{self.redisPerfix}members", m.user.ID)
+        self.flags.add(flag.muda)
 
     @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n【危險】消除所有非成員的訊息')
     async def zawarudo(self, message: Message, *args):
