@@ -595,13 +595,13 @@ class Channel:
     def getUserLevel(self, user: User) -> str:
         if re.search("#Bot", user.nickname):
             return "bot"
-        if redis.sismember(f"{self.redisGlobalPerfix}auth",user.nickname):
+        if redis.sismember(f"{self.redisGlobalPerfix}auth",user.ID):
             return "gauth"
-        if redis.sismember(f"{self.redisPerfix}auth",user.nickname):
+        if redis.sismember(f"{self.redisPerfix}auth",user.ID):
             return "auth"
-        if redis.sismember(f"{self.redisPerfix}members",user.nickname):
+        if redis.sismember(f"{self.redisPerfix}members",user.ID):
             return "member"
-        if redis.sismember(f"{self.redisGlobalPerfix}silentUsers",user.nickname):
+        if redis.sismember(f"{self.redisGlobalPerfix}silentUsers",user.ID):
             return "silent"
         return "unknown"
 
