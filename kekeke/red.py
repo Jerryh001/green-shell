@@ -1,3 +1,5 @@
 from os import getenv
-from redis import StrictRedis
-redis = StrictRedis.from_url(getenv("REDIS_URL"), decode_responses=True)
+
+from redis import Redis
+
+redis = Redis.from_url(getenv("REDISCLOUD_URL"), decode_responses=True)
