@@ -495,6 +495,7 @@ class Channel:
         else:
             redis.sadd(f"{self.redisPerfix}flags", flag)
             self.flags.add(flag)
+        await self.updateUsername()
         # await self.updateFlags(pull=True)
 
     async def say(self, content: str):
