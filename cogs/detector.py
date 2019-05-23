@@ -101,6 +101,10 @@ class Detector(commands.Cog):
                     embedlist.append(embed)
             for embed in embedlist:
                 self.lastMessages[c.name] = c.messages[0]
+                if redis.sismember("discordbot::overseechannels", embed.author.name):
+                    embed.color = discord.Color.dark_green()
+                elif embed.author.name in self.monitor.overseeing_list:
+                    embed.color = discord.Color.green()
                 mess: discord.Message = await self.reportout.send(embed=embed)
                 await mess.add_reaction(r"🛡")
                 await mess.add_reaction(r"🇲")
