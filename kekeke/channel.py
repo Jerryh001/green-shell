@@ -720,6 +720,9 @@ class Channel:
     @command.command(help=".ban <使用者>\n發起封鎖特定使用者投票")
     async def ban(self, message: Message, *args):
         target: User = message.metionUsers[0]
+        if target not in redis.sunion(f"{self.redisGlobalPerfix}auth",f"{self.redisPerfix}auth",f"{self.redisPerfix}members"):
+                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌{self.getUserText(target)}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
+                return
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
@@ -731,6 +734,9 @@ class Channel:
     async def burn(self, message: Message, *args):
         if len(message.metionUsers) > 0:
             target: User = message.metionUsers[0]
+            if target not in redis.sunion(f"{self.redisGlobalPerfix}auth",f"{self.redisPerfix}auth",f"{self.redisPerfix}members"):
+                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌{self.getUserText(target)}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
+                return
             _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForBurn"])
             _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
@@ -789,7 +795,9 @@ class Channel:
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
             for user in message.metionUsers:  # type: User
-                if redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
+                if user not in redis.sunion(f"{self.redisGlobalPerfix}auth",f"{self.redisPerfix}auth",f"{self.redisPerfix}members"):
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌{self.getUserText(user)}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
+                elif redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
                     redis.srem(self.redisGlobalPerfix+"silentUsers", user.ID)
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️將{self.getUserText(user)}移出靜音成員", metionUsers=[user, message.user]), showID=False)
                 else:
