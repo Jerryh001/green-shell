@@ -375,7 +375,7 @@ class Channel:
                     self.medias[media] = self.medias[media]+1 if media in self.medias else 1
 
     def isForbiddenMessage(self, message: Message) -> bool:
-        if redis.sismember(self.redisPerfix+"auth", message.user.ID) or redis.sismember(self.redisGlobalPerfix+"auth", message.user.ID):
+        if message.user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
             return False
         else:
             return bool(Media.loadMeaaage(message))
