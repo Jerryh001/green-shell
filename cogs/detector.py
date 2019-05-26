@@ -93,7 +93,7 @@ class Detector(commands.Cog):
                     embed.set_author(name=c.name, url=f"https://kekeke.cc/{c.name}")
                     embed.add_field(name="上線人數", value=c.population)
                     lastuserID = m.user.ID
-                embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {m.content}", inline=False)
+                embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {discord.utils.escape_markdown(m.content)}", inline=False)
             if embed:
                 if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
                     asyncio.get_event_loop().create_task(self.autoDefend(embed.author.name))

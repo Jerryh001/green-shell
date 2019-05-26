@@ -21,12 +21,12 @@ class Command:
 
 
 def command(*, alias: str = None, authonly: bool = False, help: str = ""):
-    def allowExec(self: 'Channel', user: User)->bool:
+    def allowExec(self: 'Channel', user: User) -> bool:
         if user.ID == self.user.ID:
             return True
-        if redis.sismember(self.redisPerfix+"auth", user.ID) or redis.sismember("kekeke::bot::global::auth", user.ID):
+        if redis.sismember(f"{self.redisPerfix}auth", user.ID) or redis.sismember("kekeke::bot::global::auth", user.ID):
             return True
-        elif not authonly and redis.sismember(self.redisPerfix+"members", user.ID):
+        elif not authonly and redis.sismember(f"{self.redisPerfix}members", user.ID):
             return True
         return False
 
@@ -47,11 +47,10 @@ def command(*, alias: str = None, authonly: bool = False, help: str = ""):
             result = None
             message: Message = getParameter("message")
             if allowExec(channnel, message.user):
-                channnel._log.info("命令"+func_name+":開始執行")
+                channnel._log.info(f"{message.user}執行了{func_name}")
                 result = await coro(channnel, *args, **kargs)
-                channnel._log.info("命令"+func_name+":執行完成")
             else:
-                channnel._log.warning("命令"+func_name+":不符合執行條件")
+                channnel._log.warning(f"{message.user}不符合{func_name}的執行條件")
             return result
 
         w = warp

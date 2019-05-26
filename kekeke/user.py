@@ -13,3 +13,6 @@ class User:
 
     def __hash__(self):
         return int(self.ID, 16) if self.ID else 0
+
+    def __str__(self):
+        return f"({self.ID[:5]}){self.nickname}"

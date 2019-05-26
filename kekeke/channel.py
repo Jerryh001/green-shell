@@ -565,12 +565,12 @@ class Channel:
         await self.post(payload=_payload.string)
 
     async def showLogo(self):
-        url = redis.get(self.redisGlobalPerfix+"logourl")
+        url = redis.get(f"{self.redisGlobalPerfix}logourl")
         if not url:
             logopath = os.path.join(os.getcwd(), "green.png")
             image = await self.postImage(logopath)
             url = image["url"]
-            redis.set(self.redisGlobalPerfix+"logourl", url, ex=518400)
+            redis.set(f"{self.redisGlobalPerfix}logourl", url, ex=518400)
         await self.updateThumbnail(url)
 
     async def postJson(self, json_, url: str = _square_url, header: dict = {"content-type": "application/json"}) -> typing.Dict[str, typing.Any]:
@@ -592,9 +592,6 @@ class Channel:
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", user.color if user.color != "" else None, user.ID, newname, user.ID])
         await self.post(payload=_payload.string)
 
-    def getUserText(self, user: User) -> str:
-        return "使用者("+user.ID[:5]+")"+user.nickname
-
     def getUserLevel(self, user: User) -> str:
         if re.search("#Bot", user.nickname):
             return "bot"
@@ -615,6 +612,8 @@ class Channel:
     async def help(self, message: Message, *args):
         texts = []
         for com in command.commands:
+            if com =="bind":
+                continue
             authonlytext = "是" if command.commands[com].authonly else "否"
             texts.append(f"{command.commands[com].help}\n認證成員限定：{authonlytext}\n")
         await self.sendTextImage("\n".join(texts), message.user)
@@ -689,7 +688,7 @@ class Channel:
     async def member(self, message: Message, *args):
         ismember = redis.sismember(f"{self.redisPerfix}members", message.metionUsers[0].ID)
         result = ""
-        usertext = self.getUserText(message.metionUsers[0])
+        usertext = str(message.metionUsers[0])
         if ismember:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
                 redis.srem(f"{self.redisPerfix}members", message.metionUsers[0].ID)
@@ -722,7 +721,7 @@ class Channel:
     async def ban(self, message: Message, *args):
         target: User = message.metionUsers[0]
         if target.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
-            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌{self.getUserText(target)}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌使用者{target}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
             return
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
@@ -736,7 +735,7 @@ class Channel:
         if len(message.metionUsers) > 0:
             target: User = message.metionUsers[0]
             if target.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
-                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌{self.getUserText(target)}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
+                await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌使用者{target}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
                 return
             _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForBurn"])
             _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
@@ -766,7 +765,7 @@ class Channel:
     async def auth(self, message: Message, *args):
         isauth = redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
         result = ""
-        usertext = self.getUserText(message.metionUsers[0])
+        usertext = str(message.metionUsers[0])
         if isauth:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
                 redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
@@ -792,15 +791,15 @@ class Channel:
                 await self.sendMessage(Message(), showID=False)
             self._log.info(f"發送{times}則空白訊息")
 
-    @command.command(authonly=True, help=".muda <使用者>\n使特定使用者無法發送檔案並清除全部所發送檔案")
+    @command.command(authonly=True, help=".muda <使用者>\n【危險】該使用者全站禁止發送任何訊息\n注：只能對洗版仔使用，嚴禁亂玩")
     async def muda(self, message: Message, *args):
         if len(args) >= 1:
             for user in message.metionUsers:  # type: User
                 if user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
-                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌{self.getUserText(user)}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌使用者{user}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
                 elif redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
                     redis.srem(self.redisGlobalPerfix+"silentUsers", user.ID)
-                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️將{self.getUserText(user)}移出靜音成員", metionUsers=[user, message.user]), showID=False)
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️將使用者{user}移出靜音成員", metionUsers=[user, message.user]), showID=False)
                 else:
                     redis.sadd(self.redisGlobalPerfix+"silentUsers", user.ID)
 
