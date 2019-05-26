@@ -386,7 +386,6 @@ class Channel:
 
     async def receiveMessage(self, message: Message):
         self.messages.append(message)
-        self.message_queue.put(message)
         await self.updateMedia([message])
         if len(self.messages) > 100:
             await self.updateMedia(self.messages[:-100], True)
@@ -394,6 +393,8 @@ class Channel:
 
         if not message.user.ID:
             return
+        
+        self.message_queue.put(message)
 
         if flag.muda in self.flags and message.mtype == Message.MessageType.chat:
             if not redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID) and self.isForbiddenMessage(message):
