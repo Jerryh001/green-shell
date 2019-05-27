@@ -393,7 +393,7 @@ class Channel:
 
         if not message.user.ID:
             return
-        
+
         self.message_queue.put(message)
 
         if flag.muda in self.flags and message.mtype == Message.MessageType.chat:
@@ -456,7 +456,8 @@ class Channel:
         filepath = os.path.join(os.getcwd(), f"data/{message.user.ID}.jpg")
         img.save(filepath)
         text = await self.postImage(filepath)
-        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=message.user, content=text["url"]), showID=False)
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=message.user, content=f"{self.commendPrefix}{text['url']}"), showID=False)
+        self._log.info(f"{message.user}->{message.content}")
         try:
             os.remove(filepath)
         except Exception as e:
@@ -613,7 +614,7 @@ class Channel:
     async def help(self, message: Message, *args):
         texts = []
         for com in command.commands:
-            if com =="bind":
+            if com == "bind":
                 continue
             authonlytext = "是" if command.commands[com].authonly else "否"
             texts.append(f"{command.commands[com].help}\n認證成員限定：{authonlytext}\n")
