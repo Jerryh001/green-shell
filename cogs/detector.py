@@ -82,10 +82,7 @@ class Detector(commands.Cog):
             for m in filter(lambda m: not lastmessage or lastmessage.time < m.time, reversed(c.messages)):  # type:message.Message
                 if not lastuserID or lastuserID != m.user.ID:
                     if embed:
-                        if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
-                            asyncio.get_event_loop().create_task(self.autoDefend(embed.author.name))
-                        else:
-                            embedlist.append(embed)
+                        embedlist.append(embed)
                     embed = discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()))
                     embed.set_footer(text=m.user.ID)
                     if c.thumbnail:
@@ -95,19 +92,20 @@ class Detector(commands.Cog):
                     lastuserID = m.user.ID
                 embed.add_field(name=f"{m.user.ID[:5]}@{m.user.nickname}", value=f"`{m.time.strftime('%d %H:%M')}` {discord.utils.escape_markdown(m.content)}", inline=False)
             if embed:
+                embedlist.append(embed)
+
+            for embed in embedlist:
+                self.lastMessages[c.name] = c.messages[0]
                 if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
                     asyncio.get_event_loop().create_task(self.autoDefend(embed.author.name))
                 else:
-                    embedlist.append(embed)
-            for embed in embedlist:
-                self.lastMessages[c.name] = c.messages[0]
-                if redis.sismember("discordbot::overseechannels", embed.author.name):
-                    embed.color = discord.Color.dark_green()
-                elif embed.author.name in self.monitor.overseeing_list:
-                    embed.color = discord.Color.green()
-                mess: discord.Message = await self.reportout.send(embed=embed)
-                await mess.add_reaction(r"🛡")
-                await mess.add_reaction(r"🇲")
+                    if redis.sismember("discordbot::overseechannels", embed.author.name):
+                        embed.color = discord.Color.dark_green()
+                    elif embed.author.name in self.monitor.overseeing_list:
+                        embed.color = discord.Color.green()
+                    mess: discord.Message = await self.reportout.send(embed=embed)
+                    await mess.add_reaction(r"🛡")
+                    await mess.add_reaction(r"🇲")
             if embedlist:
                 self._log.info("kekeke首頁已更新")
             else:

@@ -422,7 +422,7 @@ class Channel:
             await self.resetmessages(isValid)
 
         if message.user != self.user:
-            if re.search(r"^這是.{2,}攻擊$", message.content) and message.user.ID in redis.sunion(self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
+            if re.search(r"^這是.{2,}攻擊$", message.content) and message.user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
                 await self.isSomethingAttack(message)
             for key in redis.smembers(self.redisPerfix+"reactionkeywords"):
                 if re.search(key, message.content):
@@ -803,6 +803,7 @@ class Channel:
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️將使用者{user}移出靜音成員", metionUsers=[user, message.user]), showID=False)
                 else:
                     redis.sadd(self.redisGlobalPerfix+"silentUsers", user.ID)
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️{user}洗版狗可以滾了", metionUsers=[user, message.user]), showID=False)
 
     @command.command(authonly=True, help='.automuda\n啟用/停用當非已知使用者發送圖片或影片時，自動進行"muda"指令')
     async def automuda(self, message: Message, *args):
