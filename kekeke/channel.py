@@ -65,6 +65,7 @@ class Channel:
         self.connectEvents = None
         self.pauseListen = False
         self.pauseMessage = Message()
+        self.pauseCounter = 0
         self.closed = False
         self.GUID = self.getGUID()
         self.kerma = 0
@@ -243,12 +244,20 @@ class Channel:
                 self._log.warning(f"無法解析訊息：\n{msg.data}")
                 continue
             if self.pauseListen:
-                if m == self.pauseMessage:
-                    self.pauseListen = False
-                    if self.firstmuda and self.mode == self.BotType.defender:
-                        self.firstmuda = False
-                        asyncio.get_event_loop().create_task(self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember("kekeke::bot::cool")), showID=False))
+                if self.pauseCounter:
+                    self.pauseCounter = self.pauseCounter-1
+                    if self.pauseCounter == 0:
+                        self.pauseListen = False
+                        if self.firstmuda and self.mode == self.BotType.defender:
+                            self.firstmuda = False
+                            asyncio.get_event_loop().create_task(self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember("kekeke::bot::cool")), showID=False))
                 continue
+            if m.user.nickname.endswith("#Bot") and m.content[:3] == "###":
+                match = re.match(r"###DISABLE#BOT#RECORD#(\d+)###", m.content)
+                if match:
+                    self.pauseListen = True
+                    self.pauseCounter = int(match.group(1))
+                    continue
             if publisher == "CLIENT_TRANSPORT":
                 asyncio.get_event_loop().create_task(self.receiveMessage(m))
             elif publisher == "SERVER":
@@ -379,25 +388,21 @@ class Channel:
             return False
         else:
             return bool(Media.loadMeaaage(message))
-            # for keyword in redis.smembers(self.redisGlobalPerfix+"keyword"):
-            #     if re.search(keyword, message.content, re.IGNORECASE) or re.search(keyword, message.user.nickname, re.IGNORECASE):
-            #         return True
-            # return False
 
     async def receiveMessage(self, message: Message):
         self.messages.append(message)
         await self.updateMedia([message])
         if len(self.messages) > 100:
-            await self.updateMedia(self.messages[:-100], True)
-            self.messages = self.messages[-100:]
-
+            await self.updateMedia([self.messages[-101]], True)
+        if len(self.messages) > 200:
+            self.messages = self.messages[-150:]
         if not message.user.ID:
             return
 
         self.message_queue.put(message)
 
         if flag.muda in self.flags and message.mtype == Message.MessageType.chat:
-            if not redis.sismember(self.redisGlobalPerfix+"silentUsers", message.user.ID) and self.isForbiddenMessage(message):
+            if not redis.sismember(f"{self.redisGlobalPerfix}silentUsers", message.user.ID) and self.isForbiddenMessage(message):
                 await self.muda(Message(mtype=Message.MessageType.chat, user=self.user, metionUsers=[message.user]), message.user.nickname)
 
         if message.user.ID in self.mudausers:
@@ -412,7 +417,7 @@ class Channel:
                 await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[media.user]), showID=False)
                 asyncio.get_event_loop().create_task(self.showLogo())
 
-        if redis.scard(self.redisGlobalPerfix+"silentUsers") != len(self.mudausers):
+        if redis.scard(f"{self.redisGlobalPerfix}silentUsers") != len(self.mudausers):
             self.initMudaValue()
 
         if self.mudaValue >= 5:
@@ -424,7 +429,7 @@ class Channel:
         if message.user != self.user:
             if re.search(r"^這是.{2,}攻擊$", message.content) and message.user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
                 await self.isSomethingAttack(message)
-            for key in redis.smembers(self.redisPerfix+"reactionkeywords"):
+            for key in redis.smembers(f"{self.redisPerfix}reactionkeywords"):
                 if re.search(key, message.content):
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember(f"{self.redisPerfix}reactionkeywords::{key}"), metionUsers=[message.user]), showID=False)
             if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
@@ -432,8 +437,6 @@ class Channel:
                 if args:
                     if(args[0] in command.commands):
                         asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
-                    else:
-                        self._log.warning(f"命令{args[0]}不存在")
 
     def getSomethingAttackText(self, text: str):
         t = f"{text}！"
@@ -678,8 +681,8 @@ class Channel:
             if message.user != message.metionUsers[0]:
                 medias_to_remove.add(Media(user=message.user, url=args[1]))
         for media in medias_to_remove:
-            user = copy.deepcopy(media.user)
-            user.nickname = self.user.nickname
+            user = copy.deepcopy(self.user)
+            user.ID = media.user.ID
             await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=f"delete {media.url}"), showID=False)
 
     @command.command(alias="rename", help=".rename <新名稱>\n修改自己的使用者名稱，只在使用者列表有效")
@@ -915,8 +918,6 @@ class Channel:
             await asyncio.sleep(0)
         validmessages = list(filter(vaildRule, self.messages))
         if len(validmessages) >= 1:
-            self.pauseListen = True
-            self.pauseMessage = validmessages[-1]
             oldest = validmessages[0]
             if len(validmessages) < 100:
                 validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
@@ -924,8 +925,10 @@ class Channel:
         else:
             validmessages = list(Message() for _ in range(100))
 
+        validmessages=validmessages[-100:]
         medias = self.medias.copy()
         mudatext = random.choice(["muda", "沒用", "無駄"])
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"###DISABLE#BOT#RECORD#{len(validmessages)+len(medias)}###"), showID=False)
         for media in medias:
             user = copy.deepcopy(self.user)
             user.ID = media.user.ID
