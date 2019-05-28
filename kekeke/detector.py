@@ -95,7 +95,8 @@ def updateKeywords() -> None:
 
 def CheckMessage(message: Message) -> bool:
     global _detect_message_list, _detect_username_list
-
+    if not message:
+        return False
     for regex in _detect_message_list:  # type:re.Pattern
         if regex.search(message.content):
             return True

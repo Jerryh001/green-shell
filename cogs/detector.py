@@ -19,19 +19,13 @@ class Detector(commands.Cog):
         self.detecttime = 30
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
+        asyncio.get_event_loop().create_task(self.autoDetect())
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self._log.info("READY")
         self.monitor = self.bot.get_cog('Monitor')
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
-        asyncio.get_event_loop().create_task(self.autoDetect())
-
-    @commands.Cog.listener()
-    async def on_resumed(self):
-        self._log.info("RESUME")
-        asyncio.get_event_loop().create_task(self.autoDetect())
 
     @commands.command(name="dtime")
     async def _dtime(self, ctx: commands.Context, time: int):
@@ -47,6 +41,7 @@ class Detector(commands.Cog):
         await self.detect()
 
     async def autoDetect(self):
+        await self.bot.wait_until_ready()
         if redis.exists("kekeke::detecttime"):
             self.detecttime = int(redis.get("kekeke::detecttime"))
         if self.bot.command_prefix != ".":
