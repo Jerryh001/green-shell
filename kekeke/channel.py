@@ -278,7 +278,9 @@ class Channel:
                             asyncio.get_event_loop().create_task(self.burnoutCommit(m.payload["votingId"]))
                 elif m.mtype == Message.MessageType.system:
                     self._log.warn(f"天之聲發言：{msg_list[3]}")
-                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f'【天之聲】{m.payload["message"]}', metionUsers=list(self.users)))
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f'【天之聲】{m.payload["message"]}', metionUsers=list(self.users)), showID=False)
+                elif m.mtype == Message.MessageType.euro:
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f'{m.payload["sucker"]["nickname"]} 吸了大家的歐氣', metionUsers=list(self.users)), showID=False)
 
         asyncio.get_event_loop().create_task(self.reConnect())
 
@@ -389,7 +391,12 @@ class Channel:
         else:
             return bool(Media.loadMeaaage(message))
 
+    def isVisibleMessage(self, message: Message):
+        return message.mtype == Message.MessageType.chat or message.mtype == Message.MessageType.keke or message.mtype == Message.MessageType.deleteimage
+
     async def receiveMessage(self, message: Message):
+        if not isVisibleMessage(message):
+            return
         self.messages.append(message)
         await self.updateMedia([message])
         if len(self.messages) > 100:
@@ -925,7 +932,7 @@ class Channel:
         else:
             validmessages = list(Message() for _ in range(100))
 
-        validmessages=validmessages[-100:]
+        validmessages = validmessages[-100:]
         medias = self.medias.copy()
         mudatext = random.choice(["muda", "沒用", "無駄"])
         await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"###DISABLE#BOT#RECORD#{len(validmessages)+len(medias)}###"), showID=False)

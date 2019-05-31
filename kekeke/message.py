@@ -22,6 +22,7 @@ class Message:
         other = ""
         population = "NO_OF_CROWD_MESSAGE"
         system = "SYSTEM_MESSAGE"
+        euro = "SUCK_EURO_AIR_MESSAGE"
 
     def __init__(self, mtype: MessageType = MessageType.chat, time: datetime = None, user: User = User(), content: str = "", url: str = "", metionUsers: list = [], payload: dict = dict(), anchorUsername: str = ""):
         self.mtype = mtype
