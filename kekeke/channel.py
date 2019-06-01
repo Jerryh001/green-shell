@@ -63,8 +63,7 @@ class Channel:
         self.last_send_Nicknames = dict()
         self.redisPerfix = f"kekeke::bot::channel::{self.name}::"
         self.connectEvents = None
-        self.pauseListen = False
-        self.pauseMessage = Message()
+        self.pauseMessage = None
         self.pauseCounter = 0
         self.closed = False
         self.GUID = self.getGUID()
@@ -88,6 +87,13 @@ class Channel:
                 self._log.error(e, exc_info=True)
                 await self.Close(stop=False)
                 await asyncio.wait(5)
+
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.home.gwt.HomeModule/", "C1A6986483E70154FE9652945962D18F", "com.liquable.hiroba.gwt.client.square.IGwtAnchorSquareService", "isAnchorSquareExist"])
+        _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
+        res = await self.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/anchorSquareService")
+        if res[0] == 1:  # AnchorSquare
+            raise ValueError()
+        
         await self.subscribe()
         if self.mode == self.BotType.training:
             self._log = logging.getLogger((__name__+"#"+self.GUID[:8]))
@@ -109,7 +115,7 @@ class Channel:
                 def isValid(m: Message) -> bool:
                     return m.user.ID and m.user.ID not in self.mudausers
                 self._log.info("有殘餘洗版訊息，自動清除")
-                await self.resetmessages(isValid)
+                await self.resetMessages(isValid)
                 return
             else:
                 await self.Close()
@@ -195,8 +201,6 @@ class Channel:
             else:
                 await asyncio.sleep(5)
         data = data[-3]
-        if data[1] == "com.liquable.hiroba.gwt.client.square.AnchorSquareView/1913755809":  # AnchorSquare
-            raise ValueError()
         if not self.GUID:
             self.GUID = data[1]
             if self.mode == self.BotType.training:
@@ -225,6 +229,10 @@ class Channel:
         else:
             self._log.warning("更新歷史訊息失敗")
 
+    @property
+    def pauseListen(self):
+        return bool(self.pauseCounter or self.pauseMessage)
+
     async def listen(self):
         while not self.ws.closed:
             msg = await self.ws.receive()
@@ -247,15 +255,18 @@ class Channel:
                 if self.pauseCounter:
                     self.pauseCounter = self.pauseCounter-1
                     if self.pauseCounter == 0:
-                        self.pauseListen = False
                         if self.firstmuda and self.mode == self.BotType.defender:
                             self.firstmuda = False
                             asyncio.get_event_loop().create_task(self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember("kekeke::bot::cool")), showID=False))
+                if m == self.pauseMessage:
+                    self.pauseMessage = None
+                    if self.firstmuda and self.mode == self.BotType.defender:
+                        self.firstmuda = False
+                        asyncio.get_event_loop().create_task(self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=redis.srandmember("kekeke::bot::cool")), showID=False))
                 continue
             if m.user.nickname.endswith("#Bot") and m.content[:3] == "###":
                 match = re.match(r"###DISABLE#BOT#RECORD#(\d+)###", m.content)
                 if match:
-                    self.pauseListen = True
                     self.pauseCounter = int(match.group(1))
                     continue
             if publisher == "CLIENT_TRANSPORT":
@@ -395,7 +406,7 @@ class Channel:
         return message.mtype == Message.MessageType.chat or message.mtype == Message.MessageType.keke or message.mtype == Message.MessageType.deleteimage
 
     async def receiveMessage(self, message: Message):
-        if not isVisibleMessage(message):
+        if not self.isVisibleMessage(message):
             return
         self.messages.append(message)
         await self.updateMedia([message])
@@ -431,7 +442,7 @@ class Channel:
             def isValid(m: Message) -> bool:
                 return m.user.ID and m.user.ID not in self.mudausers
             self._log.info("偵測到已知洗版，自動清除")
-            await self.resetmessages(isValid)
+            await self.resetMessages(isValid)
 
         if message.user != self.user:
             if re.search(r"^這是.{2,}攻擊$", message.content) and message.user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
@@ -727,7 +738,7 @@ class Channel:
     async def cls(self, message: Message, *args):
         def isValid(m: Message) -> bool:
             return m.user.ID != self.user.ID and m.content[0:len(self.commendPrefix)] != self.commendPrefix
-        await self.resetmessages(isValid)
+        await self.resetMessages(isValid)
 
     @command.command(help=".ban <使用者>\n發起封鎖特定使用者投票")
     async def ban(self, message: Message, *args):
@@ -825,7 +836,7 @@ class Channel:
         if len(message.metionUsers) >= 1:
             def isValid(m: Message) -> bool:
                 return m.user not in message.metionUsers
-            await self.resetmessages(isValid)
+            await self.resetMessages(isValid)
 
     @command.command(authonly=True, help='.protect\n將在場有發言的人加為成員並開啟automuda')
     async def protect(self, message: Message, *args):
@@ -841,7 +852,7 @@ class Channel:
 
             def isValid(m: Message) -> bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
-            await self.resetmessages(isValid)
+            await self.resetMessages(isValid)
 
     @command.command(help='.save\n製作出當前對話訊息存檔')
     async def save(self, message: Message, *args):
@@ -903,7 +914,7 @@ class Channel:
             with z.open("chat.json") as c:
                 j = json.loads(c.read().decode("utf-8"))
                 self.messages = [Message.loadjson(json.dumps(m)) for m in j]
-                await self.resetmessages(lambda m: True)
+                await self.resetMessages(lambda m: True)
         try:
             os.remove(imagepath)
         except Exception as e:
@@ -920,12 +931,13 @@ class Channel:
         _payload.AddPara("java.util.List", ["java.util.ArrayList/4159755760", 3, "java.lang.String/2004016611", "我是智障", "java.lang.String/2004016611", "沒有", "java.lang.String/2004016611", "有"], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
-    async def resetmessages(self, vaildRule):
+    async def resetMessages(self, vaildRule):
         while self.pauseListen:
             await asyncio.sleep(0)
         validmessages = list(filter(vaildRule, self.messages))
         if len(validmessages) >= 1:
             oldest = validmessages[0]
+            self.pauseMessage = validmessages[-1]
             if len(validmessages) < 100:
                 validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
             await self.setMessage(validmessages)
