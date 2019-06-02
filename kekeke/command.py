@@ -41,9 +41,10 @@ def command(*, alias: str = None, authonly: bool = False, help: str = ""):
             def getParameter(name: str):
                 try:
                     keys = sign.parameters.keys()
-                    return kargs[name] if name in kargs else args[list(keys).index(name)-1]
-                except:
+                    return kargs[name] if name in kargs else args[list(keys).index(name) - 1]
+                except Exception:
                     return None
+
             result = None
             message: Message = getParameter("message")
             if allowExec(channnel, message.user):
@@ -57,4 +58,5 @@ def command(*, alias: str = None, authonly: bool = False, help: str = ""):
 
         commands[func_name] = Command(w, func_name, help, authonly)
         return w
+
     return out

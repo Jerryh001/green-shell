@@ -6,10 +6,12 @@ import re
 import signal
 import time
 from concurrent import futures
+from datetime import datetime
 
 import boto3
 import discord
 import ptvsd
+import tzlocal
 from discord.ext import commands
 
 from kekeke.bot import Bot as KBot
@@ -61,7 +63,7 @@ async def update(ctx, filemessage: DataFile):
         s3.Bucket("cloud-cube").put_object(Key=f"{CUBENAME}/{filename}", Body=open(filepath, 'rb'))
         logging.info(f"更新{filename}成功")
         await ctx.send(f"更新`{filename}`成功")
-    except:
+    except Exception:
         logging.error(f"更新{filename}失敗")
         await ctx.send(f"更新`{filename}`失敗")
 
@@ -92,11 +94,24 @@ async def hi(ctx: commands.Context):
 async def _eval(ctx: commands.Context, *, cmd: str):
     try:
         ret = eval(cmd)
-        logging.info(f"eval({cmd})成功，返回：{ret}")
-        await ctx.send(f"`{ret}`")
-    except:
-        logging.warning(f"eval({cmd}) 失敗")
-        await ctx.send(f"`eval({cmd})`失敗")
+        resstr = ""
+        try:
+            resstr = str(ret)
+        except expression as identifier:
+            resstr = repr(ret)
+
+        if len(resstr) > 1018:
+            resstr = f"{resstr[:1015]}..."
+
+        embed = discord.Embed(timestamp=tzlocal.get_localzone().localize(datetime.now()), color=discord.Color.green())
+        embed.set_author(name=ctx.message.author.display_name, icon_url=ctx.message.author.avatar_url)
+        embed.add_field(name=f"{cmd}", value=f"```{resstr}```")
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar_url)
+        logging.info(f"eval({cmd})成功，返回：{resstr}")
+        await ctx.send(embed=embed)
+    except Exception:
+        logging.warning(f"eval({cmd}) 失敗或無法顯示")
+        await ctx.send(f"`eval({cmd})`失敗或無法顯示")
 
 
 @bot.command()
@@ -107,7 +122,7 @@ async def loglevel(ctx, level: str, logger_name: str = ""):
         logger.setLevel(eval(f"logging.{level_new}"))
         logging.debug(f"logger{logger_name}的等級修改為{level_new}")
         await ctx.send(f"logger`{logger_name}`的等級修改為`{level_new}`")
-    except:
+    except Exception:
         logging.warning(f"無法把{logger_name}的等級修改為{level}")
         await ctx.send(f"無法把`{logger_name}`的等級修改為`{level}`")
 

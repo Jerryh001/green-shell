@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 from concurrent import futures
@@ -37,7 +36,7 @@ class Monitor(commands.Cog):
                 try:
                     await self.kekeke.kbot.channels[message.channel.name].anonSend(message)
                 except KeyError:
-                    logging.warning(message.channel.name+"不在監視中，無法發送訊息")
+                    logging.warning(f"{message.channel.name}不在監視中，無法發送訊息")
             await message.delete()
 
     @commands.command(name="train")
@@ -99,7 +98,7 @@ class Monitor(commands.Cog):
     async def _BeforeOversee(self, ctx: commands.Context):
         channel: discord.TextChannel = next((c for c in self.bot.get_channel(483268757884633088).channels if c.name == ctx.kwargs["channelname"]), None)
         if channel:
-            url = r"https://kekeke.cc/"+channel.name
+            url = f"https://kekeke.cc/{channel.name}"
             if channel.topic != url:
                 await channel.edit(topic=url)
 

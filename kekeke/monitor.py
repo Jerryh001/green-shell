@@ -43,9 +43,9 @@ class Monitor(object):
             if discordid:
                 duser = self.stdout.guild.get_member(int(discordid))
             if duser:
-                embed.set_author(name=duser.display_name+"("+message.user.ID[:5]+"@"+message.user.nickname+")", icon_url=duser.avatar_url)
+                embed.set_author(name=duser.display_name + "(" + message.user.ID[:5] + "@" + message.user.nickname + ")", icon_url=duser.avatar_url)
             else:
-                embed.set_author(name=message.user.ID[:5]+"@"+message.user.nickname)
+                embed.set_author(name=message.user.ID[:5] + "@" + message.user.nickname)
 
             self._last_time = message.time
 
@@ -66,9 +66,9 @@ class Monitor(object):
             last_messages = await self.stdout.history(limit=1).flatten()
             try:
                 return last_messages[0].embeds[0].timestamp.replace(tzinfo=datetime.timezone.utc)
-            except:
+            except Exception:
                 return last_messages[0].created_at.replace(tzinfo=datetime.timezone.utc)
-        except:
+        except Exception:
             return datetime.datetime(datetime.MINYEAR, 1, 1, tzinfo=datetime.timezone.utc)
 
     async def Oversee(self, defender=False):

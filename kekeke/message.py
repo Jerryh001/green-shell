@@ -1,6 +1,5 @@
 __all__ = ["Message", "Media"]
 
-
 import html
 import json
 import re
@@ -34,17 +33,17 @@ class Message:
         self.payload = payload
 
     @staticmethod
-    def loadjsonlist(jsonlist: list)->list:
+    def loadjsonlist(jsonlist: list) -> list:
         messages: list = list()
         for json in jsonlist:
             m = Message.loadjson(json)
-            if(not m or not m.user.ID):
+            if (not m or not m.user.ID):
                 continue
             messages.append(m)
         return messages
 
     @staticmethod
-    def loadjson(json_str: str)->'Message':
+    def loadjson(json_str: str) -> 'Message':
         try:
             message = json.loads(json_str)
         except json.JSONDecodeError:
@@ -58,7 +57,7 @@ class Message:
             return None
         for key in message:
             message[key] = html.unescape(message[key])
-        message_time = tzlocal.get_localzone().localize(datetime.fromtimestamp(float(message["date"])/1000))
+        message_time = tzlocal.get_localzone().localize(datetime.fromtimestamp(float(message["date"]) / 1000))
 
         url = re.search(r'https?://\S+', message["content"], re.IGNORECASE)
 
@@ -69,15 +68,15 @@ class Message:
             prefix = "?#" if len(names) != len(metionIDs) else ""
             for i in range(len(metionIDs)):
                 if i < len(names):
-                    metionUsers.append(User(name=prefix+names[i], ID=metionIDs[i]))
+                    metionUsers.append(User(name=prefix + names[i], ID=metionIDs[i]))
                 else:
-                    metionUsers.append(User(name=prefix+metionIDs[i][:5], ID=metionIDs[i]))
-        except:
+                    metionUsers.append(User(name=prefix + metionIDs[i][:5], ID=metionIDs[i]))
+        except Exception:
             pass
         usercolor: str = ""
         try:
             usercolor = message["senderColorToken"]
-        except:
+        except Exception:
             pass
         return Message(mtype=mtype, time=message_time, user=User(ID=message["senderPublicId"], name=message["senderNickName"], color=usercolor, anchorUsername=message["anchorUsername"]), content=message["content"], url=url.group(0) if url else "", metionUsers=metionUsers, payload=message["payload"] if "payload" in message else dict())
 
@@ -86,9 +85,8 @@ class Message:
 
 
 class Media:
-
     @staticmethod
-    def loadMeaaage(message: Message)->"Media":
+    def loadMeaaage(message: Message) -> "Media":
         media = None
         if re.search(r"(^https://.+\.youtube\.com/.+|^https?://\S+\.(jpe?g|png|gif|mp4)$)", message.url, re.IGNORECASE):
             media = Media(user=message.user, url=message.url, remove=(message.mtype == Message.MessageType.deleteimage))
@@ -100,7 +98,7 @@ class Media:
         self.remove = remove
 
     def __hash__(self):
-        return hash(self.user.ID+self.url)
+        return hash(self.user.ID + self.url)
 
     def __eq__(self, that):
         return self.user.ID == that.user.ID and self.url == that.url

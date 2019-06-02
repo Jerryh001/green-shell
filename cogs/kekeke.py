@@ -1,4 +1,3 @@
-
 import asyncio
 
 import discord
@@ -34,7 +33,7 @@ class Kekeke(commands.Cog):
                 try:
                     name = message.embeds[0].author.name
                     asyncio.get_event_loop().create_task(self.monitor.oversee(name, True))
-                except:
+                except Exception:
                     await self.stdout.send(f"無法對`{name}`進行防禦")
             if payload.emoji.name == r"🇲":
                 userid = message.embeds[0].footer.text
@@ -64,7 +63,7 @@ class Kekeke(commands.Cog):
                 redis.srem("discordbot::overseechannels", name)
                 self.monitor.overseeing_list[name].cancel()
                 self.monitor.overseeing_list.pop(name)
-            except:
+            except Exception:
                 await self.stdout.send(f"無法停止對`{name}`的防禦")
 
 

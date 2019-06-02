@@ -30,12 +30,12 @@ class Bot:
             redis.sunionstore("kekeke::bot::training::GUIDs", "kekeke::bot::training::GUIDs", "kekeke::bot::training::GUIDs::using")
             redis.delete("kekeke::bot::training::GUIDs::using")
         if size < num:
-            for _ in range(num-size):
+            for _ in range(num - size):
                 c = Channel("測試123", Channel.BotType.training)
                 self.trainings.append(c)
                 await c.initial()
         elif size > num:
-            for _ in range(size-num):
+            for _ in range(size - num):
                 c = self.trainings.pop()
                 await c.Close()
 

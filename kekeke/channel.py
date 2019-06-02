@@ -76,7 +76,7 @@ class Channel:
 
     async def initial(self):
         if self.mode == self.BotType.training:
-            self._log = logging.getLogger((__name__+"#????????"))
+            self._log = logging.getLogger((__name__ + "#????????"))
         while True:
             try:
                 self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
@@ -93,10 +93,10 @@ class Channel:
         res = await self.post(payload=_payload.string, url="https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/anchorSquareService")
         if res[0] == 1:  # AnchorSquare
             raise ValueError()
-        
+
         await self.subscribe()
         if self.mode == self.BotType.training:
-            self._log = logging.getLogger((__name__+"#"+self.GUID[:8]))
+            self._log = logging.getLogger((__name__ + "#" + self.GUID[:8]))
         if self.mode != self.BotType.training:
             await self.updateFlags(True)
             await self.initMessages(self.name)
@@ -112,8 +112,10 @@ class Channel:
         try:
             await asyncio.sleep(900)
             if self.mudaValue:
+
                 def isValid(m: Message) -> bool:
                     return m.user.ID and m.user.ID not in self.mudausers
+
                 self._log.info("有殘餘洗版訊息，自動清除")
                 await self.resetMessages(isValid)
                 return
@@ -189,7 +191,7 @@ class Channel:
                 if redis.smove("kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool::using", guid):
                     return guid
         else:
-            return redis.get(self.redisPerfix+"botGUID")
+            return redis.get(self.redisPerfix + "botGUID")
 
     async def subscribe(self):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
@@ -208,7 +210,7 @@ class Channel:
             else:
                 if self.mode == self.BotType.defender:
                     self._log.error("沒有足夠Kerma的GUID可用，隨便創建一個")
-                redis.set(self.redisPerfix+"botGUID", self.GUID)
+                redis.set(self.redisPerfix + "botGUID", self.GUID)
         self.user.ID = data[-1]
         await self.ws.send_str(f'CONNECT\nlogin:{json.dumps({"accessToken": data[2], "nickname": self.user.nickname})}')
         await self.ws.send_str(f'SUBSCRIBE\ndestination:/topic/{self.name}')
@@ -253,7 +255,7 @@ class Channel:
                 continue
             if self.pauseListen:
                 if self.pauseCounter:
-                    self.pauseCounter = self.pauseCounter-1
+                    self.pauseCounter = self.pauseCounter - 1
                     if self.pauseCounter == 0:
                         if self.firstmuda and self.mode == self.BotType.defender:
                             self.firstmuda = False
@@ -312,9 +314,9 @@ class Channel:
         newname = self.user.nickname
 
         if self.mode == self.BotType.training:
-            newname = newname+f"({self.kerma})"
+            newname = newname + f"({self.kerma})"
 
-        newname = newname+"".join(self.flags)
+        newname = newname + "".join(self.flags)
 
         if self.mode == self.BotType.defender:
             newname = ""
@@ -338,9 +340,8 @@ class Channel:
             j.reverse()
             keys = j[2]
             for i in range(5, len(j), 6):
-                new_users.add(User(
-                    name=keys[j[i+4]-1], ID=keys[j[i+3]-1], color=keys[j[i+2]-1] if j[i+2] > 0 else ""))
-            joined = new_users-self.users
+                new_users.add(User(name=keys[j[i + 4] - 1], ID=keys[j[i + 3] - 1], color=keys[j[i + 2] - 1] if j[i + 2] > 0 else ""))
+            joined = new_users - self.users
             self.users = new_users
             if flag.talk in self.flags:
                 for user in joined:
@@ -348,7 +349,7 @@ class Channel:
                         discordid = redis.hget("kekeke::bot::users::discordid", user.ID)
                         redis.hset("discordbot::users::kekekecolor", discordid, user.color)
 
-                    if user.ID in redis.sunion(self.redisPerfix+"ignores", self.redisGlobalPerfix+"ignores", self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth"):
+                    if user.ID in redis.sunion(self.redisPerfix + "ignores", self.redisGlobalPerfix + "ignores", self.redisPerfix + "members", self.redisPerfix + "auth", self.redisGlobalPerfix + "auth"):
                         continue
                     if not self.messages:
                         continue
@@ -362,7 +363,7 @@ class Channel:
     def initMudaValue(self):
         self.mudacounter = 0
         self.mudaValue = 0
-        self.mudausers: list = redis.smembers(self.redisGlobalPerfix+"silentUsers")
+        self.mudausers: list = redis.smembers(self.redisGlobalPerfix + "silentUsers")
         for message in self.messages:  # type:Message
             if message.user.ID in self.mudausers:
                 self.mudacounter = self.mudacounter + 1
@@ -388,13 +389,13 @@ class Channel:
                         pass
                 elif pop:
                     try:
-                        self.medias[media] = self.medias[media]-1
+                        self.medias[media] = self.medias[media] - 1
                         if self.medias[media] == 0:
                             self.medias.pop(media)
                     except KeyError:
                         pass
                 else:
-                    self.medias[media] = self.medias[media]+1 if media in self.medias else 1
+                    self.medias[media] = self.medias[media] + 1 if media in self.medias else 1
 
     def isForbiddenMessage(self, message: Message) -> bool:
         if message.user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
@@ -432,15 +433,17 @@ class Channel:
             if media.user.ID in self.mudausers:
                 user = copy.deepcopy(self.user)
                 user.ID = media.user.ID
-                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"])+" "+media.url, metionUsers=[media.user]), showID=False)
+                await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=random.choice(["muda", "沒用", "無駄"]) + " " + media.url, metionUsers=[media.user]), showID=False)
                 asyncio.get_event_loop().create_task(self.showLogo())
 
         if redis.scard(f"{self.redisGlobalPerfix}silentUsers") != len(self.mudausers):
             self.initMudaValue()
 
         if self.mudaValue >= 5:
+
             def isValid(m: Message) -> bool:
                 return m.user.ID and m.user.ID not in self.mudausers
+
             self._log.info("偵測到已知洗版，自動清除")
             await self.resetMessages(isValid)
 
@@ -453,17 +456,17 @@ class Channel:
             if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
                 args = message.content[len(self.commendPrefix):].split()
                 if args:
-                    if(args[0] in command.commands):
+                    if (args[0] in command.commands):
                         asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
 
     def getSomethingAttackText(self, text: str):
         t = f"{text}！"
         length = len(t)
-        lines = math.ceil(len(t)/7)
+        lines = math.ceil(len(t) / 7)
         result = ""
         for i in range(7):
             for j in reversed(range(lines)):
-                pos = i+j*7
+                pos = i + j * 7
                 result += t[pos] if pos < length else "　"
             result += "\n"
         return result
@@ -486,15 +489,7 @@ class Channel:
             self._log.error(e, exc_info=True)
 
     async def sendMessage(self, message: Message, *, showID=True, escape=True):
-        message_obj = {
-            "senderPublicId": message.user.ID,
-            "senderNickName": (f"{message.user.ID[:5]}#" if showID else "")+message.user.nickname,
-            "anchorUsername": message.user.anchorUsername,
-            "content": html.escape(message.content) if escape else message.content,
-            "date":  str(int(message.time.timestamp()*1000)),
-            "eventType": message.mtype.value,
-            "payload": message.payload
-        }
+        message_obj = {"senderPublicId": message.user.ID, "senderNickName": (f"{message.user.ID[:5]}#" if showID else "") + message.user.nickname, "anchorUsername": message.user.anchorUsername, "content": html.escape(message.content) if escape else message.content, "date": str(int(message.time.timestamp() * 1000)), "eventType": message.mtype.value, "payload": message.payload}
         if message.user.color:
             message_obj["senderColorToken"] = message.user.color
         message_obj["payload"]["replyPublicIds"] = []
@@ -553,7 +548,7 @@ class Channel:
         img = Image.new('RGB', (1, 1), (255, 255, 255))
         d = ImageDraw.Draw(img)
         w, h = d.multiline_textsize(text=text, font=font)
-        img = img.resize((w+20, h+20))
+        img = img.resize((w + 20, h + 20))
         d = ImageDraw.Draw(img)
         d.text((10, 10), text, fill=(0, 0, 0), font=font)
         filepath = os.path.join(os.getcwd(), "data/image.jpg")
@@ -629,7 +624,7 @@ class Channel:
         return "unknown"
 
 
-############################################commands#######################################
+# ###########################################commands#######################################
 
     @command.command(help=".help\n顯示這個訊息")
     async def help(self, message: Message, *args):
@@ -644,9 +639,9 @@ class Channel:
     @command.command(help=".status\n顯示目前在線上的成員列表")
     async def status(self, message: Message, *args):
         texts = []
-        gauth = redis.smembers(self.redisGlobalPerfix+"auth")
-        auths = redis.smembers(self.redisPerfix+"auth")
-        members = redis.smembers(self.redisPerfix+"members")
+        gauth = redis.smembers(self.redisGlobalPerfix + "auth")
+        auths = redis.smembers(self.redisPerfix + "auth")
+        members = redis.smembers(self.redisPerfix + "members")
         authtext = []
         membertext = []
         unknowntext = []
@@ -672,7 +667,7 @@ class Channel:
 
     @command.command(help=".whois <使用者>\n分辨對象的身分類型")
     async def whois(self, message: Message, *args):
-        if(len(message.metionUsers) == 1):
+        if (len(message.metionUsers) == 1):
             level = self.getUserLevel(message.metionUsers[0])
             result = f"({message.metionUsers[0].ID[:5]}){message.metionUsers[0].nickname}是"
             if level == "bot":
@@ -726,7 +721,7 @@ class Channel:
                     else:
                         result = f"❌不能將{usertext}從認證成員變為一般成員，對方擁有較高的權限"
                 else:
-                    redis.sadd(self.redisPerfix+"members", message.metionUsers[0].ID)
+                    redis.sadd(self.redisPerfix + "members", message.metionUsers[0].ID)
                     result = f"✔️成功將{usertext}變為一般成員"
 
         if not result:
@@ -738,6 +733,7 @@ class Channel:
     async def cls(self, message: Message, *args):
         def isValid(m: Message) -> bool:
             return m.user.ID != self.user.ID and m.content[0:len(self.commendPrefix)] != self.commendPrefix
+
         await self.resetMessages(isValid)
 
     @command.command(help=".ban <使用者>\n發起封鎖特定使用者投票")
@@ -786,18 +782,18 @@ class Channel:
 
     @command.command(authonly=True, help=".auth (add/remove) <使用者>\n將特定使用者從本頻道認證成員新增/移除，成為成員後可使用所有指令\n若不指定add/remove則自動判斷")
     async def auth(self, message: Message, *args):
-        isauth = redis.sismember(self.redisPerfix+"auth", message.metionUsers[0].ID)
+        isauth = redis.sismember(self.redisPerfix + "auth", message.metionUsers[0].ID)
         result = ""
         usertext = str(message.metionUsers[0])
         if isauth:
             if len(args) == 1 or (len(args) == 2 and args[0] == "remove"):
-                redis.srem(self.redisPerfix+"auth", message.metionUsers[0].ID)
+                redis.srem(self.redisPerfix + "auth", message.metionUsers[0].ID)
                 result = f"✔️成功將{usertext}從認證成員移除"
         else:
             if len(args) == 1 or (len(args) == 2 and args[0] == "add"):
-                redis.sadd(self.redisPerfix+"auth", message.metionUsers[0].ID)
-                if redis.sismember(self.redisPerfix+"members", message.metionUsers[0].ID):
-                    redis.srem(self.redisPerfix+"members", message.metionUsers[0].ID)
+                redis.sadd(self.redisPerfix + "auth", message.metionUsers[0].ID)
+                if redis.sismember(self.redisPerfix + "members", message.metionUsers[0].ID):
+                    redis.srem(self.redisPerfix + "members", message.metionUsers[0].ID)
                     result = f"✔️成功將{usertext}從一般成員變為認證成員"
                 else:
                     result = f"✔️成功將{usertext}變為認證成員"
@@ -820,11 +816,11 @@ class Channel:
             for user in message.metionUsers:  # type: User
                 if user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌使用者{user}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
-                elif redis.sismember(self.redisGlobalPerfix+"silentUsers", user.ID):
-                    redis.srem(self.redisGlobalPerfix+"silentUsers", user.ID)
+                elif redis.sismember(self.redisGlobalPerfix + "silentUsers", user.ID):
+                    redis.srem(self.redisGlobalPerfix + "silentUsers", user.ID)
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️將使用者{user}移出靜音成員", metionUsers=[user, message.user]), showID=False)
                 else:
-                    redis.sadd(self.redisGlobalPerfix+"silentUsers", user.ID)
+                    redis.sadd(self.redisGlobalPerfix + "silentUsers", user.ID)
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️{user}洗版狗可以滾了", metionUsers=[user, message.user]), showID=False)
 
     @command.command(authonly=True, help='.automuda\n啟用/停用當非已知使用者發送圖片或影片時，自動進行"muda"指令')
@@ -834,8 +830,10 @@ class Channel:
     @command.command(authonly=True, help='.clearup <人名>\n消除所有該使用者的訊息')
     async def clearup(self, message: Message, *args):
         if len(message.metionUsers) >= 1:
+
             def isValid(m: Message) -> bool:
                 return m.user not in message.metionUsers
+
             await self.resetMessages(isValid)
 
     @command.command(authonly=True, help='.protect\n將在場有發言的人加為成員並開啟automuda')
@@ -848,25 +846,18 @@ class Channel:
     @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n【危險】消除所有非成員的訊息')
     async def zawarudo(self, message: Message, *args):
         if len(args) >= 1 and args[0] == self.name:
-            vaildusers: typing.Set[User] = redis.sunion(self.redisPerfix+"members", self.redisPerfix+"auth", self.redisGlobalPerfix+"auth")
+            vaildusers: typing.Set[User] = redis.sunion(self.redisPerfix + "members", self.redisPerfix + "auth", self.redisGlobalPerfix + "auth")
 
             def isValid(m: Message) -> bool:
                 return m.user.ID in vaildusers and m.content[0:len(self.commendPrefix)] != self.commendPrefix
+
             await self.resetMessages(isValid)
 
     @command.command(help='.save\n製作出當前對話訊息存檔')
     async def save(self, message: Message, *args):
         messageslist = []
         for m in self.messages:  # type: Message
-            message_obj = {
-                "senderPublicId": m.user.ID,
-                "senderNickName": m.user.nickname,
-                "anchorUsername": "",
-                "content": html.escape(m.content),
-                "date":  str(int(m.time.timestamp()*1000)),
-                "eventType": m.mtype.value,
-                "payload": m.payload
-            }
+            message_obj = {"senderPublicId": m.user.ID, "senderNickName": m.user.nickname, "anchorUsername": "", "content": html.escape(m.content), "date": str(int(m.time.timestamp() * 1000)), "eventType": m.mtype.value, "payload": m.payload}
             if m.user.color:
                 message_obj["senderColorToken"] = m.user.color
             message_obj["payload"]["replyPublicIds"] = []
@@ -939,7 +930,7 @@ class Channel:
             oldest = validmessages[0]
             self.pauseMessage = validmessages[-1]
             if len(validmessages) < 100:
-                validmessages = list(Message(time=oldest.time) for _ in range(100-len(validmessages)))+validmessages
+                validmessages = list(Message(time=oldest.time) for _ in range(100 - len(validmessages))) + validmessages
             await self.setMessage(validmessages)
         else:
             validmessages = list(Message() for _ in range(100))

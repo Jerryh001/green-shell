@@ -23,7 +23,6 @@ _log = logging.getLogger(__name__)
 
 
 class Channel(object):
-
     def __init__(self):
         self.name = ""
         self.messages: List[Message] = list()
@@ -41,11 +40,11 @@ async def GetHPMessages() -> List[Channel]:
     try:
         async with aiohttp.request("POST", "https://kekeke.cc/com.liquable.hiroba.gwt.server.GWTHandler/squareService", data=_HP_message_payload.string, headers={"content-type": "text/x-gwt-rpc; charset=UTF-8"}) as r:
             resp = await r.text()
-    except:
+    except Exception:
         return output
     if resp[:4] == r"//OK":
         data = json.loads(resp[4:])
-        strings: List[str] = [None]+data[-3]
+        strings: List[str] = [None] + data[-3]
         values: deque = deque(data[:-3])
         _ignored = redis.smembers("kekeke::bot::detector::ignoretopic")
         if values.pop():  # java.util.ArrayList/4159755760
