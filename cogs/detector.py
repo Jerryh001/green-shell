@@ -1,10 +1,12 @@
 import asyncio
 import logging
+import os
 import typing
 from concurrent import futures
 from datetime import datetime
 
 import discord
+import googleapiclient.discovery
 import tzlocal
 from discord.ext import commands
 
@@ -20,6 +22,7 @@ class Detector(commands.Cog):
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
         asyncio.get_event_loop().create_task(self.autoDetect())
+        self.updateYoutube()
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -39,6 +42,39 @@ class Detector(commands.Cog):
         await self.stdout.send("開始進行kekeke首頁監視")
         self._log.info("開始進行kekeke首頁監視")
         await self.detect()
+
+    def updateYoutube(self):
+        youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.getenv("GOOGLE_API_KEY"))
+
+        pagetoken = None
+        while True:
+            response = youtube.channels().list(part="contentDetails", id=",".join(redis.smembers("kekeke::bot::detector::youtube::channel")), maxResults=50, pageToken=pagetoken).execute()
+            if "nextPageToken" in response:
+                pagetoken = response["nextPageToken"]
+            for channel in response["items"]:
+                redis.sadd("kekeke::bot::detector::youtube::playlist::temp", channel["contentDetails"]["relatedPlaylists"]["uploads"])
+            if not pagetoken:
+                break
+        try:
+            redis.rename("kekeke::bot::detector::youtube::playlist::temp", "kekeke::bot::detector::youtube::playlist")
+        except Exception:
+            return
+
+        for playlist in redis.smembers("kekeke::bot::detector::youtube::playlist"):
+            pagetoken = None
+            while True:
+                response = youtube.playlistItems().list(part="contentDetails", playlistId=playlist, maxResults=50, pageToken=pagetoken).execute()
+                if "nextPageToken" in response:
+                    pagetoken = response["nextPageToken"]
+                for video in response["items"]:
+                    redis.sadd("kekeke::bot::detector::youtube::video::temp", video["contentDetails"]["videoId"])
+                if not pagetoken:
+                    break
+
+        try:
+            redis.rename("kekeke::bot::detector::youtube::video::temp", "kekeke::bot::detector::youtube::video")
+        except Exception:
+            return
 
     async def autoDetect(self):
         await self.bot.wait_until_ready()

@@ -5,3 +5,4 @@ redis
 pillow
 aiofiles
 ptvsd
+google-api-python-client
