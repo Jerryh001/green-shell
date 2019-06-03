@@ -8,7 +8,7 @@ from datetime import datetime
 import discord
 import googleapiclient.discovery
 import tzlocal
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from kekeke import detector, message
 from kekeke.red import redis
@@ -18,11 +18,15 @@ class Detector(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.detectEvent: asyncio.Task = None
-        self.detecttime = 30
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
-        asyncio.get_event_loop().create_task(self.autoDetect())
+        # if self.bot.command_prefix != ".":
+        #     return
         self.updateYoutube()
+        self.detect.start()
+
+    def cog_unload(self):
+        self.detect.cancel()
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -30,18 +34,24 @@ class Detector(commands.Cog):
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
 
-    @commands.command(name="dtime")
-    async def _dtime(self, ctx: commands.Context, time: int):
+    @commands.command()
+    async def dtime(self, ctx: commands.Context, time: int):
         if redis.set("kekeke::detecttime", time):
-            self.detecttime = time
+            self.detect.change_interval(seconds=time)
             await self.stdout.send(f"首頁偵測時間更新為`{time}`秒")
             self._log.info(f"首頁偵測時間更新為{time}秒")
 
     @commands.command(name="detect")
     async def _detect(self, ctx: commands.Context):
+        self.detect.start()
         await self.stdout.send("開始進行kekeke首頁監視")
         self._log.info("開始進行kekeke首頁監視")
-        await self.detect()
+
+    @commands.command()
+    async def dstop(self, ctx: commands.Context):
+        self.detect.stop()
+        await self.stdout.send("停止kekeke首頁監視")
+        self._log.info("停止kekeke首頁監視")
 
     def updateYoutube(self):
         if self.bot.command_prefix != ".":
@@ -78,31 +88,21 @@ class Detector(commands.Cog):
         except Exception:
             return
 
-    async def autoDetect(self):
-        await self.bot.wait_until_ready()
-        if redis.exists("kekeke::detecttime"):
-            self.detecttime = int(redis.get("kekeke::detecttime"))
-        if self.bot.command_prefix != ".":
-            return
-        await self.detect()
-
+    @tasks.loop(seconds=int(redis.get("kekeke::detecttime")))  # workaround, will fix in 1.2.0
     async def detect(self):
-        if self.detectEvent:
-            self.detectEvent.cancel()
-            try:
-                await self.detectEvent
-            except futures.CancelledError:
-                pass
-        self.detectEvent = asyncio.get_event_loop().create_task(self._detectRunner())
+        result = await detector.Detect()
+        if result:
+            await self._sendReport(result)
+        else:
+            self._log.debug("kekeke首頁無資料更新")
 
-    async def _detectRunner(self):
-        while True:
-            result = await detector.Detect()
-            if result:
-                await self._sendReport(result)
-            else:
-                self._log.debug("kekeke首頁無資料更新")
-            await asyncio.sleep(self.detecttime)
+    @detect.before_loop
+    async def before_detect(self):
+        await self.bot.wait_until_ready()
+        detecttime = 30
+        if redis.exists("kekeke::detecttime"):
+            detecttime = int(redis.get("kekeke::detecttime"))
+        #self.detect.change_interval(seconds=detecttime)
 
     async def _sendReport(self, report: typing.List[detector.Channel]):
         for c in report:  # type:detector.Channel
