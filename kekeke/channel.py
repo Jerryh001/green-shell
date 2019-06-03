@@ -816,11 +816,11 @@ class Channel:
             for user in message.metionUsers:  # type: User
                 if user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌使用者{user}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
-                elif redis.sismember(self.redisGlobalPerfix + "silentUsers", user.ID):
-                    redis.srem(self.redisGlobalPerfix + "silentUsers", user.ID)
+                elif redis.sismember(f"{self.redisGlobalPerfix}silentUsers", user.ID):
+                    redis.srem(f"{self.redisGlobalPerfix}silentUsers", user.ID)
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️將使用者{user}移出靜音成員", metionUsers=[user, message.user]), showID=False)
                 else:
-                    redis.sadd(self.redisGlobalPerfix + "silentUsers", user.ID)
+                    redis.sadd(f"{self.redisGlobalPerfix}silentUsers", user.ID)
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️{user}洗版狗可以滾了", metionUsers=[user, message.user]), showID=False)
 
     @command.command(authonly=True, help='.automuda\n啟用/停用當非已知使用者發送圖片或影片時，自動進行"muda"指令')

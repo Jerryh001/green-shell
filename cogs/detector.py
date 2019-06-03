@@ -22,7 +22,7 @@ class Detector(commands.Cog):
         self.lastMessages: typing.Dict[str, message.Message] = dict()
         # if self.bot.command_prefix != ".":
         #     return
-        self.updateYoutube()
+        # self.updateYoutube()
         self.detect.start()
 
     def cog_unload(self):
