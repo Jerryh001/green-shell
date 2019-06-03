@@ -22,7 +22,7 @@ class Detector(commands.Cog):
         self.lastMessages: typing.Dict[str, message.Message] = dict()
         # if self.bot.command_prefix != ".":
         #     return
-        # self.updateYoutube()
+        self.updateYoutube()
         self.detect.start()
 
     def cog_unload(self):
@@ -54,18 +54,16 @@ class Detector(commands.Cog):
         self._log.info("停止kekeke首頁監視")
 
     def updateYoutube(self):
-        if self.bot.command_prefix != ".":
-            return
         youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.getenv("GOOGLE_API_KEY"))
 
         pagetoken = None
         while True:
             response = youtube.channels().list(part="contentDetails", id=",".join(redis.smembers("kekeke::bot::detector::youtube::channel")), maxResults=50, pageToken=pagetoken).execute()
-            if "nextPageToken" in response:
-                pagetoken = response["nextPageToken"]
             for channel in response["items"]:
                 redis.sadd("kekeke::bot::detector::youtube::playlist::temp", channel["contentDetails"]["relatedPlaylists"]["uploads"])
-            if not pagetoken:
+            if "nextPageToken" in response:
+                pagetoken = response["nextPageToken"]
+            else:
                 break
         try:
             redis.rename("kekeke::bot::detector::youtube::playlist::temp", "kekeke::bot::detector::youtube::playlist")
@@ -76,11 +74,11 @@ class Detector(commands.Cog):
             pagetoken = None
             while True:
                 response = youtube.playlistItems().list(part="contentDetails", playlistId=playlist, maxResults=50, pageToken=pagetoken).execute()
-                if "nextPageToken" in response:
-                    pagetoken = response["nextPageToken"]
                 for video in response["items"]:
                     redis.sadd("kekeke::bot::detector::youtube::video::temp", video["contentDetails"]["videoId"])
-                if not pagetoken:
+                if "nextPageToken" in response:
+                    pagetoken = response["nextPageToken"]
+                else:
                     break
 
         try:
@@ -102,7 +100,7 @@ class Detector(commands.Cog):
         detecttime = 30
         if redis.exists("kekeke::detecttime"):
             detecttime = int(redis.get("kekeke::detecttime"))
-        #self.detect.change_interval(seconds=detecttime)
+        # self.detect.change_interval(seconds=detecttime)
 
     async def _sendReport(self, report: typing.List[detector.Channel]):
         for c in report:  # type:detector.Channel
