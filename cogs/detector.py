@@ -44,6 +44,8 @@ class Detector(commands.Cog):
         await self.detect()
 
     def updateYoutube(self):
+        if self.bot.command_prefix != ".":
+            return
         youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.getenv("GOOGLE_API_KEY"))
 
         pagetoken = None
