@@ -456,7 +456,7 @@ class Channel:
             if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
                 args = message.content[len(self.commendPrefix):].split()
                 if args:
-                    if (args[0] in command.commands):
+                    if (args[0] in command.commands) and self.mode == self.BotType.defender:
                         asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
 
     def getSomethingAttackText(self, text: str):

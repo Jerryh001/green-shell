@@ -20,8 +20,8 @@ class Detector(commands.Cog):
         self.detectEvent: asyncio.Task = None
         self._log: logging.RootLogger = logging.getLogger(self.__class__.__name__)
         self.lastMessages: typing.Dict[str, message.Message] = dict()
-        # if self.bot.command_prefix != ".":
-        #     return
+        if self.bot.command_prefix != ".":
+            return
         self.updateYoutube()
         self.detect.start()
 
