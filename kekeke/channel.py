@@ -456,7 +456,7 @@ class Channel:
             if message.content[0:len(self.commendPrefix)] == self.commendPrefix:
                 args = message.content[len(self.commendPrefix):].split()
                 if args:
-                    if (args[0] in command.commands) and self.mode == self.BotType.defender:
+                    if args[0] in command.commands:
                         asyncio.get_event_loop().create_task(command.commands[args[0]](self, message, *(args[1:])))
 
     def getSomethingAttackText(self, text: str):
@@ -626,7 +626,7 @@ class Channel:
 
 # ###########################################commands#######################################
 
-    @command.command(help=".help\n顯示這個訊息")
+    @command.command(safe=True, help=".help\n顯示這個訊息")
     async def help(self, message: Message, *args):
         texts = []
         for com in command.commands:
@@ -636,7 +636,7 @@ class Channel:
             texts.append(f"{command.commands[com].help}\n認證成員限定：{authonlytext}\n")
         await self.sendTextImage("\n".join(texts), message.user)
 
-    @command.command(help=".status\n顯示目前在線上的成員列表")
+    @command.command(safe=True, help=".status\n顯示目前在線上的成員列表")
     async def status(self, message: Message, *args):
         texts = []
         gauth = redis.smembers(self.redisGlobalPerfix + "auth")
@@ -665,7 +665,7 @@ class Channel:
             texts.extend(unknowntext)
         await self.sendTextImage("\n".join(texts), message.user)
 
-    @command.command(help=".whois <使用者>\n分辨對象的身分類型")
+    @command.command(safe=True, help=".whois <使用者>\n分辨對象的身分類型")
     async def whois(self, message: Message, *args):
         if (len(message.metionUsers) == 1):
             level = self.getUserLevel(message.metionUsers[0])
@@ -698,7 +698,7 @@ class Channel:
             user.ID = media.user.ID
             await self.sendMessage(Message(mtype=Message.MessageType.deleteimage, user=user, content=f"delete {media.url}"), showID=False)
 
-    @command.command(alias="rename", help=".rename <新名稱>\n修改自己的使用者名稱，只在使用者列表有效")
+    @command.command(safe=True, alias="rename", help=".rename <新名稱>\n修改自己的使用者名稱，只在使用者列表有效")
     async def command_rename(self, message: Message, *args):
         await self.rename(message.user, args[0])
 
@@ -763,7 +763,7 @@ class Channel:
             _payload.AddPara("java.lang.String/2004016611", [f"【由{message.user.nickname}發起，本投票通過時自動燒毀KERMA】"], regonly=True)
             await self.post(payload=_payload.string, url=self._vote_url)
 
-    @command.command(help=".autotalk\n啟用/停用自動發送訊息功能")
+    @command.command(safe=True, help=".autotalk\n啟用/停用自動發送訊息功能")
     async def autotalk(self, message: Message, *args):
         await self.toggleFlag(flag.talk)
 
@@ -853,7 +853,7 @@ class Channel:
 
             await self.resetMessages(isValid)
 
-    @command.command(help='.save\n製作出當前對話訊息存檔')
+    @command.command(safe=True, help='.save\n製作出當前對話訊息存檔')
     async def save(self, message: Message, *args):
         messageslist = []
         for m in self.messages:  # type: Message
@@ -912,7 +912,7 @@ class Channel:
             self._log.error(f"刪除檔案{imagepath}失敗")
             self._log.error(e, exc_info=True)
 
-    @command.command(authonly=True, help='.pluscheck\n用一種不科學的方法檢查有幾個人裝kekeke plus')
+    @command.command(safe=True, authonly=True, help='.pluscheck\n用一種不科學的方法檢查有幾個人裝kekeke plus')
     async def pluscheck(self, message: Message, *args):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForNormal"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])

@@ -20,8 +20,10 @@ class Command:
         return self._coro(channnel, *args, **kargs)
 
 
-def command(*, alias: str = None, authonly: bool = False, help: str = ""):
+def command(*, safe=False, alias: str = None, authonly: bool = False, help: str = ""):
     def allowExec(self: 'Channel', user: User) -> bool:
+        if not safe and self.mode != self.BotType.defender:
+            return False
         if user.ID == self.user.ID:
             return True
         if redis.sismember(f"{self.redisPerfix}auth", user.ID) or redis.sismember("kekeke::bot::global::auth", user.ID):
