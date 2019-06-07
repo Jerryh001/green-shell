@@ -691,8 +691,8 @@ class Channel:
         await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️強制終止了{len(self.pandingCommands)}條未執行的指令", metionUsers=[message.user]), showID=False)
         self.pandingCommands = []
 
-    @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
-    async def remove(safe=True, self, message: Message, *args):
+    @command.command(safe=True, help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
+    async def remove(self, message: Message, *args):
         medias_to_remove = set()
         if len(args) == 1:
             for media in self.medias:
