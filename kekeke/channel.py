@@ -73,6 +73,7 @@ class Channel:
         self.firstmuda = True
         self.mudausers = list()
         self.timeout = None
+        self.pandingCommands = []
 
     async def initial(self):
         if self.mode == self.BotType.training:
@@ -682,6 +683,13 @@ class Channel:
                 result += "未知使用者"
             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
 
+    @command.command(safe=True, help=".stop\n強制終止未執行的危險指令")
+    async def stop(self, message: Message, *args):
+        for command in self.pandingCommands:
+            command.cancel()
+        await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"✔️強制終止了{len(self.pandingCommands)}條未執行的指令", metionUsers=[message.user]), showID=False)
+        self.pandingCommands = []
+
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
     async def remove(self, message: Message, *args):
         medias_to_remove = set()
@@ -702,7 +710,7 @@ class Channel:
     async def command_rename(self, message: Message, *args):
         await self.rename(message.user, args[0])
 
-    @command.command(help=".member (add/remove) <使用者>\n將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令\n一般成員不可修改認證成員身分\n若不指定add/remove則自動判斷")
+    @command.command(safe=True, help=".member (add/remove) <使用者>\n將特定使用者從本頻道一般成員新增/移除，成為成員後才可使用指令\n一般成員不可修改認證成員身分\n若不指定add/remove則自動判斷")
     async def member(self, message: Message, *args):
         ismember = redis.sismember(f"{self.redisPerfix}members", message.metionUsers[0].ID)
         result = ""
@@ -729,7 +737,7 @@ class Channel:
 
         await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=result, metionUsers=[message.metionUsers[0], message.user]), showID=False)
 
-    @command.command(help='.cls\n消除所有以"."作為開頭的訊息以及機器人的訊息')
+    @command.command(safe=True, help='.cls\n消除所有以"."作為開頭的訊息以及機器人的訊息')
     async def cls(self, message: Message, *args):
         def isValid(m: Message) -> bool:
             return m.user.ID != self.user.ID and m.content[0:len(self.commendPrefix)] != self.commendPrefix
@@ -812,7 +820,7 @@ class Channel:
 
     @command.command(authonly=True, help=".muda <使用者>\n【危險】該使用者全站禁止發送任何訊息\n注：只能對洗版仔使用，嚴禁亂玩")
     async def muda(self, message: Message, *args):
-        if len(args) >= 1:
+        if len(args) >= 1 and self.mode == self.BotType.defender:
             for user in message.metionUsers:  # type: User
                 if user.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
                     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌使用者{user}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
@@ -825,7 +833,8 @@ class Channel:
 
     @command.command(authonly=True, help='.automuda\n啟用/停用當非已知使用者發送圖片或影片時，自動進行"muda"指令')
     async def automuda(self, message: Message, *args):
-        await self.toggleFlag(flag.muda)
+        if self.mode == self.BotType.defender:
+            await self.toggleFlag(flag.muda)
 
     @command.command(authonly=True, help='.clearup <人名>\n消除所有該使用者的訊息')
     async def clearup(self, message: Message, *args):
@@ -838,10 +847,11 @@ class Channel:
 
     @command.command(authonly=True, help='.protect\n將在場有發言的人加為成員並開啟automuda')
     async def protect(self, message: Message, *args):
-        for m in self.messages:
-            if self.getUserLevel(m.user) == "unknown":
-                redis.sadd(f"{self.redisPerfix}members", m.user.ID)
-        self.flags.add(flag.muda)
+        if self.mode == self.BotType.defender:
+            for m in self.messages:
+                if self.getUserLevel(m.user) == "unknown":
+                    redis.sadd(f"{self.redisPerfix}members", m.user.ID)
+            self.flags.add(flag.muda)
 
     @command.command(authonly=True, help='.zawarudo <目前頻道名稱>\n【危險】消除所有非成員的訊息')
     async def zawarudo(self, message: Message, *args):
