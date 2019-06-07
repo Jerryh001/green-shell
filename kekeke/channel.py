@@ -631,10 +631,11 @@ class Channel:
     async def help(self, message: Message, *args):
         texts = []
         for com in command.commands:
-            if com == "bind":
+            if com == "bind" or com == "muda" or com == "automuda" or com == "protect":
                 continue
+            dangertext = "是" if not command.commands[com].safe else "否"
             authonlytext = "是" if command.commands[com].authonly else "否"
-            texts.append(f"{command.commands[com].help}\n認證成員限定：{authonlytext}\n")
+            texts.append(f"{command.commands[com].help}\n危險：{dangertext}\n認證成員限定：{authonlytext}\n")
         await self.sendTextImage("\n".join(texts), message.user)
 
     @command.command(safe=True, help=".status\n顯示目前在線上的成員列表")
@@ -691,7 +692,7 @@ class Channel:
         self.pandingCommands = []
 
     @command.command(help=".remove <使用者> <檔案>\n移除特定使用者所發出的檔案\n如果不指定檔名，則移除所有該使用者發出的所有檔案")
-    async def remove(self, message: Message, *args):
+    async def remove(safe=True, self, message: Message, *args):
         medias_to_remove = set()
         if len(args) == 1:
             for media in self.medias:
@@ -922,7 +923,7 @@ class Channel:
             self._log.error(f"刪除檔案{imagepath}失敗")
             self._log.error(e, exc_info=True)
 
-    @command.command(safe=True, authonly=True, help='.pluscheck\n用一種不科學的方法檢查有幾個人裝kekeke plus')
+    @command.command(safe=True, help='.pluscheck\n用一種不科學的方法檢查有幾個人裝kekeke plus')
     async def pluscheck(self, message: Message, *args):
         _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "C8317665135E6B272FC628F709ED7F2C", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForNormal"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
