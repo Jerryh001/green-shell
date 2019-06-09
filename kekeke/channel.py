@@ -52,7 +52,7 @@ class Channel:
         self.name = name
         self.user = User(f'{("小小綠盾" if self.mode == self.BotType.training else "綠盾防禦系統")}#Bot', anchorUsername="__BOT__")
         self._log = logging.getLogger((f"{__name__}@{self.name}"))
-        self.session: aiohttp.ClientSession = None
+        self._session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
         self.messages = list()
         self.message_queue = Queue()

@@ -86,7 +86,7 @@ class Detector(commands.Cog):
         except Exception:
             return
 
-    @tasks.loop(seconds=int(redis.get("kekeke::detecttime")))  # workaround, will fix in 1.2.0
+    @tasks.loop()  # workaround, will fix in 1.2.0
     async def detect(self):
         result = await detector.Detect()
         if result:
@@ -100,7 +100,7 @@ class Detector(commands.Cog):
         detecttime = 30
         if redis.exists("kekeke::detecttime"):
             detecttime = int(redis.get("kekeke::detecttime"))
-        # self.detect.change_interval(seconds=detecttime)
+        self.detect.change_interval(seconds=detecttime)
 
     async def _sendReport(self, report: typing.List[detector.Channel]):
         for c in report:  # type:detector.Channel
