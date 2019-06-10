@@ -13,9 +13,10 @@ class Monitor(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.overseeing_list = dict()
+        self.bot.loop.create_task(self.initial())
 
-    @commands.Cog.listener()
-    async def on_ready(self):
+    async def initial(self):
+        await self.bot.wait_until_ready()
         self.kekeke = self.bot.get_cog('Kekeke')
         self.stdout = self.bot.get_channel(483242913807990806)
         if self.bot.command_prefix != ".":
@@ -23,9 +24,9 @@ class Monitor(commands.Cog):
         redis.sunionstore("kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool", "kekeke::bot::GUIDpool::using")
         redis.delete("kekeke::bot::GUIDpool::using")
         for channelname in redis.smembers("discordbot::overseechannels"):
-            asyncio.get_event_loop().create_task(self.oversee(channelname))
+            self.bot.loop.create_task(self.oversee(channelname))
         try:
-            asyncio.get_event_loop().create_task(self.train(int(redis.get("kekeke::bot::training::number"))))
+            self.bot.loop.create_task(self.train(int(redis.get("kekeke::bot::training::number"))))
         except ValueError:
             pass
 
@@ -42,7 +43,7 @@ class Monitor(commands.Cog):
     @commands.command(name="train")
     async def _train(self, ctx: commands.Context, *, num: int):
         redis.set("kekeke::bot::training::number", num)
-        asyncio.get_event_loop().create_task(self.train(num))
+        self.bot.loop.create_task(self.train(num))
 
     async def train(self, num: int):
         await self.kekeke.kbot.train(num)
@@ -56,19 +57,19 @@ class Monitor(commands.Cog):
         if defender:
             logging.info(f"對{name}進行防禦")
             await self.stdout.send(f"對`{name}`進行防禦")
-            self.overseeing_list[name] = asyncio.get_event_loop().create_task(KMonitor(name, None, self.kekeke.kbot).Oversee(True))
+            self.overseeing_list[name] = self.bot.loop.create_task(KMonitor(name, None, self.kekeke.kbot).Oversee(True))
         else:
             channel: discord.TextChannel = next((c for c in self.bot.get_channel(483268757884633088).channels if c.name == name), None)
             if not channel:
                 logging.warning(f"{name}頻道不存在")
-            self.overseeing_list[name] = asyncio.get_event_loop().create_task(KMonitor(name, channel, self.kekeke.kbot).Oversee())
+            self.overseeing_list[name] = self.bot.loop.create_task(KMonitor(name, channel, self.kekeke.kbot).Oversee())
             redis.sadd("discordbot::overseechannels", name)
-
+        isReboot = False
         try:
             await self.overseeing_list[name]
         except futures.CancelledError:
             await self.kekeke.kbot.unSubscribe(name)
-        except ValueError as e:
+        except ValueError:
             await self.kekeke.kbot.unSubscribe(name)
             logging.info(f"{name}可能為主播廣場")
             await self.stdout.send(f"`{name}`可能為主播廣場")
@@ -76,10 +77,13 @@ class Monitor(commands.Cog):
             logging.error(f"監視{name}時發生錯誤:")
             logging.error(e, exc_info=True)
             await self.stdout.send(f"監視`{name}`時發生錯誤")
-        logging.info(f"已停止監視{name}")
-        await self.stdout.send(f"已停止監視`{name}`")  # workaround: if stopped by heroku, channel won't pop
-        redis.srem("discordbot::overseechannels", name)
-        self.overseeing_list.pop(name)
+        except KeyboardInterrupt:
+            isReboot = True
+        if not isReboot:
+            logging.info(f"已停止監視{name}")
+            await self.stdout.send(f"已停止監視`{name}`")
+            redis.srem("discordbot::overseechannels", name)
+            self.overseeing_list.pop(name)
 
     @commands.command()
     async def sendall(self, ctx: commands.Context, *, content: str):

@@ -44,14 +44,14 @@ class Detector(commands.Cog):
     @commands.command(name="detect")
     async def _detect(self, ctx: commands.Context):
         self.detect.start()
-        await self.stdout.send("開始進行kekeke首頁監視")
         self._log.info("開始進行kekeke首頁監視")
+        await self.stdout.send("開始進行kekeke首頁監視")
 
     @commands.command()
     async def dstop(self, ctx: commands.Context):
         self.detect.stop()
-        await self.stdout.send("停止kekeke首頁監視")
         self._log.info("停止kekeke首頁監視")
+        await self.stdout.send("停止kekeke首頁監視")
 
     def updateYoutube(self):
         youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.getenv("GOOGLE_API_KEY"))
@@ -101,6 +101,12 @@ class Detector(commands.Cog):
         if redis.exists("kekeke::detecttime"):
             detecttime = int(redis.get("kekeke::detecttime"))
         self.detect.change_interval(seconds=detecttime)
+
+    @detect.after_loop
+    async def after_detect(self):
+        if self.bulker.is_being_cancelled():
+            self._log.info("發生錯誤，強制終止監視kekeke首頁")
+            await self.stdout.send("發生錯誤，強制終止監視kekeke首頁")
 
     async def _sendReport(self, report: typing.List[detector.Channel]):
         for c in report:  # type:detector.Channel

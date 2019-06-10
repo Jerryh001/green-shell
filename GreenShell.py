@@ -32,9 +32,10 @@ class GreenShell(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot.load_extension('cogs.kekeke')
+        self.bot.loop.create_task(self.initial())
 
-    @commands.Cog.listener()
-    async def on_ready(self):
+    async def initial(self):
+        await self.bot.wait_until_ready()
         self.stdout = self.bot.get_channel(483242913807990806)
         logging.info(f"{self.bot.user.name}({self.bot.user.id})已上線")
         await self.stdout.send(f"{self.bot.user.name}已上線{self.bot.command_prefix}")
@@ -85,15 +86,9 @@ class GreenShell(commands.Cog):
 bot = commands.Bot(command_prefix=os.getenv("DISCORD_PREFIX"), owner_id=152965086951112704)
 
 
-async def SIGTERM_exit():
-    await self.stdout.send(f"{bot.user.name} has stopped by SIGTERM")
-    logging.warning(f"{bot.user.name} has stopped by SIGTERM")
-
-
 def SIG_EXIT(signum, frame):
-    time.sleep(5)
     logging.warning(f"{bot.user.name} has stopped by SIGTERM")
-    print("bye")
+    print(f"{bot.user.name} has stopped by SIGTERM")
     time.sleep(5)
     for task in asyncio.Task.all_tasks():
         task.cancel()
