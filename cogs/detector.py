@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import typing
-from concurrent import futures
 from datetime import datetime
 
 import discord

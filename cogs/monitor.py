@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from concurrent import futures
 
 import discord
 from discord.ext import commands
@@ -67,8 +66,7 @@ class Monitor(commands.Cog):
         isReboot = False
         try:
             await self.overseeing_list[name]
-            logging.info("111111111")
-        except futures.CancelledError:
+        except asyncio.CancelledError:
             await self.kekeke.kbot.unSubscribe(name)
         except ValueError:
             await self.kekeke.kbot.unSubscribe(name)
@@ -78,17 +76,6 @@ class Monitor(commands.Cog):
             logging.error(f"監視{name}時發生錯誤:")
             logging.error(e, exc_info=True)
             await self.stdout.send(f"監視`{name}`時發生錯誤")
-        except KeyboardInterrupt:
-            isReboot = True
-            logging.info("22222222222")
-        except BaseException:
-            logging.info("33333333333")
-        if not isReboot:
-            logging.info(self.overseeing_list[name])
-            logging.info(f"已停止監視{name}")
-            await self.stdout.send(f"已停止監視`{name}`")
-            redis.srem("discordbot::overseechannels", name)
-            self.overseeing_list.pop(name)
 
     @commands.command()
     async def sendall(self, ctx: commands.Context, *, content: str):
@@ -114,7 +101,10 @@ class Monitor(commands.Cog):
     @commands.command()
     async def stop(self, ctx: commands.Context, *, channelname: str):
         try:
-            self.overseeing_list[channelname].cancel()
+            self.overseeing_list.pop(channelname).cancel()
+            logging.info(f"已停止監視{channelname}")
+            await self.stdout.send(f"已停止監視`{channelname}`")
+            redis.srem("discordbot::overseechannels", channelname)
         except KeyError:
             logging.warning(f"{channelname}不在監視中")
             await ctx.send(f"`{channelname}`不在監視中")

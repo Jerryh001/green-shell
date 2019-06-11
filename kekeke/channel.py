@@ -11,7 +11,6 @@ import random
 import re
 import time
 import typing
-from concurrent import futures
 from datetime import datetime
 from queue import Queue
 from shutil import copyfile
@@ -964,7 +963,7 @@ class Channel:
             self.timeout.cancel()
             try:
                 await self.timeout
-            except futures.CancelledError:
+            except asyncio.CancelledError:
                 pass
             self.timeout = asyncio.get_event_loop().create_task(self.SelfTimeout())
 
