@@ -1,3 +1,6 @@
+import json
+
+
 class GWTPayload:
     def __init__(self, target: list):
         self._list_head = ["7", "0"]
@@ -35,3 +38,12 @@ class GWTPayload:
 
     def __str__(self):
         return self.string
+
+
+def respToJson(string: str):
+    try:
+        return json.loads(string)
+    except Exception as e:
+        if string[:4] == "//OK":
+            return json.loads(string[4:])
+        raise e

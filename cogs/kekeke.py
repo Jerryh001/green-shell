@@ -3,7 +3,8 @@ import asyncio
 import discord
 from discord.ext import commands
 
-from kekeke.bot import Bot as KBot
+from kekeke.bot2 import Bot as KBot
+from kekeke.bot.managerbot import ManagerBot
 from kekeke.red import redis
 
 
@@ -65,6 +66,17 @@ class Kekeke(commands.Cog):
                 self.monitor.overseeing_list.pop(name)
             except Exception:
                 await self.stdout.send(f"無法停止對`{name}`的防禦")
+
+    @commands.command(aliases=["m"])
+    async def mamage(self, ctx):
+        self.b = ManagerBot()
+        await self.b.initial()
+
+    @commands.command()
+    async def mstop(self, ctx):
+        if self.b:
+            await self.b.Close(True)
+            self.b = None
 
 
 def setup(bot: commands.Bot):

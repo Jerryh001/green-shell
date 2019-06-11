@@ -4,7 +4,7 @@ import logging
 
 import aiohttp
 
-from .channel import Channel
+from .bot.channel import Channel
 from .red import redis
 
 

@@ -24,8 +24,6 @@ class Command:
 
 def command(*, safe: bool = False, alias: str = None, authonly: bool = False, help: str = ""):
     def allowExec(self: 'Channel', user: User) -> bool:
-        if user.ID == self.user.ID:
-            return True
         if redis.sismember(f"{self.redisPerfix}auth", user.ID) or redis.sismember("kekeke::bot::global::auth", user.ID):
             return True
         elif not authonly and redis.sismember(f"{self.redisPerfix}members", user.ID):
@@ -58,7 +56,7 @@ def command(*, safe: bool = False, alias: str = None, authonly: bool = False, he
             message: Message = getParameter("message")
             if allowExec(self, message.user):
                 job = coro(self, *args, **kargs)
-                if not safe and self.mode != self.BotType.defender:
+                if not safe and self.channelName != "綠盾防禦系統" and self.mode != self.BotType.defender:
                     panding = asyncio.ensure_future(runLater(job))
                     self._log.info(f"{message.user}即將執行危險指令{func_name}")
                     self.pandingCommands.append(panding)

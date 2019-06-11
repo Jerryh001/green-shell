@@ -11,8 +11,8 @@ import discord
 import tzlocal
 import websockets
 
-from .bot import Bot as KBot
-from .channel import Channel
+from .bot2 import Bot as KBot
+from .bot.channel import Channel
 from .GWTpayload import GWTPayload
 from .message import Message
 from .red import redis
