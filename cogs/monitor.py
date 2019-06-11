@@ -67,6 +67,7 @@ class Monitor(commands.Cog):
         isReboot = False
         try:
             await self.overseeing_list[name]
+            logging.info("111111111")
         except futures.CancelledError:
             await self.kekeke.kbot.unSubscribe(name)
         except ValueError:
@@ -79,7 +80,11 @@ class Monitor(commands.Cog):
             await self.stdout.send(f"監視`{name}`時發生錯誤")
         except KeyboardInterrupt:
             isReboot = True
+            logging.info("22222222222")
+        except BaseException:
+            logging.info("33333333333")
         if not isReboot:
+            logging.info(self.overseeing_list[name])
             logging.info(f"已停止監視{name}")
             await self.stdout.send(f"已停止監視`{name}`")
             redis.srem("discordbot::overseechannels", name)
