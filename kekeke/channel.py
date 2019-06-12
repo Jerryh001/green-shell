@@ -79,8 +79,8 @@ class Channel:
             self._log = logging.getLogger((__name__ + "#????????"))
         while True:
             try:
-                self._session: aiohttp.ClientSession = await aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True)).__aenter__()
-                self.ws: aiohttp.ClientWebSocketResponse = await self._session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket", heartbeat=120).__aenter__()
+                self._session = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True))
+                self.ws = await self._session.ws_connect(url=r"wss://ws.kekeke.cc/com.liquable.hiroba.websocket", heartbeat=120)
                 break
             except Exception as e:
                 self._log.error("對伺服器建立連線失敗，5秒後重試")
