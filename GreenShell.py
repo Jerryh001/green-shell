@@ -12,7 +12,7 @@ import ptvsd
 import tzlocal
 from discord.ext import commands
 
-ptvsd.enable_attach(address=('localhost', 5678), redirect_output=True)
+ptvsd.enable_attach(address=('localhost', 5678))
 
 CUBENAME = re.search(r"(?<=/)[^/]+$", os.getenv("CLOUDCUBE_URL"), re.IGNORECASE).group(0)
 

@@ -53,7 +53,7 @@ class Detector(commands.Cog):
         await self.stdout.send("停止kekeke首頁監視")
 
     def updateYoutube(self):
-        youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.getenv("GOOGLE_API_KEY"))
+        youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.getenv("GOOGLE_API_KEY"), cache_discovery=False)
 
         pagetoken = None
         while True:
@@ -103,7 +103,7 @@ class Detector(commands.Cog):
 
     @detect.after_loop
     async def after_detect(self):
-        if self.bulker.is_being_cancelled():
+        if self.detect.is_being_cancelled():
             self._log.info("發生錯誤，強制終止監視kekeke首頁")
             await self.stdout.send("發生錯誤，強制終止監視kekeke首頁")
 
