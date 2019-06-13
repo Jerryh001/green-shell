@@ -85,7 +85,7 @@ class Detector(commands.Cog):
         except Exception:
             return
 
-    @tasks.loop()  # workaround, will fix in 1.2.0
+    @tasks.loop()
     async def detect(self):
         result = await detector.Detect()
         if result:

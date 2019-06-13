@@ -76,6 +76,8 @@ class Monitor(commands.Cog):
             logging.error(f"監視{name}時發生錯誤:")
             logging.error(e, exc_info=True)
             await self.stdout.send(f"監視`{name}`時發生錯誤")
+        finally:
+            self.overseeing_list.pop(name,None)
 
     @commands.command()
     async def sendall(self, ctx: commands.Context, *, content: str):
@@ -101,7 +103,7 @@ class Monitor(commands.Cog):
     @commands.command()
     async def stop(self, ctx: commands.Context, *, channelname: str):
         try:
-            self.overseeing_list.pop(channelname).cancel()
+            self.overseeing_list[channelname].cancel()
             logging.info(f"已停止監視{channelname}")
             await self.stdout.send(f"已停止監視`{channelname}`")
             redis.srem("discordbot::overseechannels", channelname)
