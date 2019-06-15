@@ -11,17 +11,18 @@ class Kekeke(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.bot.load_extension('cogs.detector')
-        self.bot.load_extension('cogs.monitor')
+        # self.bot.load_extension('cogs.monitor')
         self.kbot = KBot()
 
     @commands.Cog.listener()
     async def on_ready(self):
         self.detector = self.bot.get_cog('Detector')
-        self.monitor = self.bot.get_cog('Monitor')
+        # self.monitor = self.bot.get_cog('Monitor')
         self.stdout = self.bot.get_channel(483242913807990806)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        return
         user: discord.User = self.bot.get_user(payload.user_id)
         if user == self.bot.user:
             return
@@ -51,6 +52,7 @@ class Kekeke(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+        return
         user: discord.User = self.bot.get_user(payload.user_id)
         if user == self.bot.user:
             return

@@ -77,7 +77,7 @@ class Monitor(commands.Cog):
             logging.error(e, exc_info=True)
             await self.stdout.send(f"監視`{name}`時發生錯誤")
         finally:
-            self.overseeing_list.pop(name,None)
+            self.overseeing_list.pop(name, None)
 
     @commands.command()
     async def sendall(self, ctx: commands.Context, *, content: str):

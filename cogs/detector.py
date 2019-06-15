@@ -29,7 +29,7 @@ class Detector(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.monitor = self.bot.get_cog('Monitor')
+        # self.monitor = self.bot.get_cog('Monitor')
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
 
@@ -132,17 +132,17 @@ class Detector(commands.Cog):
 
             for embed in embedlist:
                 self.lastMessages[c.name] = c.messages[0]
-                if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
-                    self._log.info(f"偵測到洗版仔{embed.footer.text}")
-                    asyncio.get_event_loop().create_task(self.autoDefend(embed.author.name))
-                else:
-                    if redis.sismember("discordbot::overseechannels", embed.author.name):
-                        embed.color = discord.Color.dark_green()
-                    elif embed.author.name in self.monitor.overseeing_list:
-                        embed.color = discord.Color.green()
-                    mess: discord.Message = await self.reportout.send(embed=embed)
-                    await mess.add_reaction(r"🛡")
-                    await mess.add_reaction(r"🇲")
+                # if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
+                #     self._log.info(f"偵測到洗版仔{embed.footer.text}")
+                #     asyncio.get_event_loop().create_task(self.autoDefend(embed.author.name))
+                # else:
+                #     if redis.sismember("discordbot::overseechannels", embed.author.name):
+                #         embed.color = discord.Color.dark_green()
+                #     elif embed.author.name in self.monitor.overseeing_list:
+                #         embed.color = discord.Color.green()
+                mess: discord.Message = await self.reportout.send(embed=embed)
+                await mess.add_reaction(r"🛡")
+                await mess.add_reaction(r"🇲")
             if embedlist:
                 self._log.info("kekeke首頁已更新")
             else:
