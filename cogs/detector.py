@@ -29,7 +29,7 @@ class Detector(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # self.monitor = self.bot.get_cog('Monitor')
+        self.monitor = self.bot.get_cog('Monitor')
         self.stdout = self.bot.get_channel(483242913807990806)
         self.reportout = self.bot.get_channel(483268806072991794)
 
