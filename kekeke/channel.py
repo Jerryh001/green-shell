@@ -510,8 +510,8 @@ class Channel:
 
     def getMessageHash(self, messagejson: str, waterID: int):
         fullstr = f"{self.loginstr}{messagejson}/topic/{self.name}{waterID}"
-        b64 = base64.b64encode(fullstr.encode('utf8')).decode().replace('/', '_').replace('+', '-')
-        md5 = hashlib.md5(b64.encode('utf8')).hexdigest()
+        b64 = base64.b64encode(fullstr.encode('utf8'), altchars=b'-_')
+        md5 = hashlib.md5(b64).hexdigest()
         return md5
 
     async def waitMessage(self) -> Message:

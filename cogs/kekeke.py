@@ -51,7 +51,6 @@ class Kekeke(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
-        return
         user: discord.User = self.bot.get_user(payload.user_id)
         if user == self.bot.user:
             return
