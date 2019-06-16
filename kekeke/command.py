@@ -33,7 +33,7 @@ def command(*, safe: bool = False, alias: str = None, authonly: bool = False, he
         return False
 
     async def runLater(job):
-        await asyncio.sleep(10)
+        await asyncio.sleep(5)
         try:
             return await job
         except asyncio.CancelledError:
@@ -58,20 +58,19 @@ def command(*, safe: bool = False, alias: str = None, authonly: bool = False, he
             message: Message = getParameter("message")
             if allowExec(self, message.user):
                 job = coro(self, *args, **kargs)
-                # if not safe and self.mode != self.BotType.defender:
-                #     panding = asyncio.ensure_future(runLater(job))
-                #     self._log.info(f"{message.user}即將執行危險指令{func_name}")
-                #     self.pandingCommands.append(panding)
-                #     await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❗【危】{message.user}即將執行{func_name}，輸入.stop可以強制終止", metionUsers=list(self.users)), showID=False)
-                #     result = await panding
-                #     try:
-                #         self.pandingCommands.remove(panding)
-                #     except ValueError:
-                #         pass
-                # else:
-                #     self._log.info(f"{message.user}執行了{func_name}")
-                #     result = await job
-                result = await job
+                if not safe and self.mode != self.BotType.defender:
+                    panding = asyncio.ensure_future(runLater(job))
+                    self._log.info(f"{message.user}即將執行危險指令{func_name}")
+                    self.pandingCommands.append(panding)
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❗【危】{message.user}即將執行{func_name}，輸入.stop可以強制終止", metionUsers=list(self.users)), showID=False)
+                    result = await panding
+                    try:
+                        self.pandingCommands.remove(panding)
+                    except ValueError:
+                        pass
+                else:
+                    self._log.info(f"{message.user}執行了{func_name}")
+                    result = await job
             else:
                 self._log.warning(f"{message.user}不符合{func_name}的執行條件")
             return result

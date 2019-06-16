@@ -1,6 +1,8 @@
 import asyncio
+import base64
 import copy
 import functools
+import hashlib
 import html
 import inspect
 import json
@@ -73,6 +75,9 @@ class Channel:
         self.mudausers = list()
         self.timeout = None
         self.pandingCommands = []
+
+        self.loginstr = ""
+        self.waterID = 1
 
     async def initial(self):
         if self.mode == self.BotType.training:
@@ -211,8 +216,10 @@ class Channel:
                 if self.mode == self.BotType.defender:
                     self._log.error("沒有足夠Kerma的GUID可用，隨便創建一個")
                 redis.set(self.redisPerfix + "botGUID", self.GUID)
+        self.waterID = 1
         self.user.ID = data[-1]
-        await self.ws.send_str(f'CONNECT\nlogin:{json.dumps({"accessToken": data[2], "nickname": self.user.nickname})}')
+        self.loginstr = json.dumps({"accessToken": data[2], "nickname": self.user.nickname}, ensure_ascii=False, separators=(', ', ':'))
+        await self.ws.send_str(f'CONNECT\nlogin:{self.loginstr}')
         await self.ws.send_str(f'SUBSCRIBE\ndestination:/topic/{self.name}')
         self._log.info(f"subscribe {self.name}")
 
@@ -489,7 +496,6 @@ class Channel:
             self._log.error(e, exc_info=True)
 
     async def sendMessage(self, message: Message, *, showID=True, escape=True):
-        return
         message_obj = {"senderPublicId": message.user.ID, "senderNickName": (f"{message.user.ID[:5]}#" if showID else "") + message.user.nickname, "anchorUsername": message.user.anchorUsername, "content": html.escape(message.content) if escape else message.content, "date": str(int(message.time.timestamp() * 1000)), "eventType": message.mtype.value, "payload": message.payload}
         if message.user.color:
             message_obj["senderColorToken"] = message.user.color
@@ -497,8 +503,16 @@ class Channel:
         if message.metionUsers:
             for muser in message.metionUsers:
                 message_obj["payload"]["replyPublicIds"].append(muser.ID)
-        payload = f'SEND\ndestination:/topic/{self.name}\n\n{json.dumps(message_obj, ensure_ascii=False)}'
+        message_str = json.dumps(message_obj, ensure_ascii=False, separators=(', ', ':'))
+        payload = f'SEND\ndestination:/topic/{self.name}\n_sig:{self.getMessageHash(message_str,self.waterID)}\n\n{message_str}'
+        self.waterID = self.waterID + 1
         await self.ws.send_str(payload)
+
+    def getMessageHash(self, messagejson: str, waterID: int):
+        fullstr = f"{self.loginstr}{messagejson}/topic/{self.name}{waterID}"
+        b64 = base64.b64encode(fullstr.encode('utf8')).decode().replace('/', '_').replace('+', '-')
+        md5 = hashlib.md5(b64.encode('utf8')).hexdigest()
+        return md5
 
     async def waitMessage(self) -> Message:
         while self.message_queue.qsize() < 1:
@@ -934,7 +948,6 @@ class Channel:
         await self.post(payload=_payload.string, url=self._vote_url)
 
     async def resetMessages(self, vaildRule):
-        return
         while self.pauseListen:
             await asyncio.sleep(0)
         validmessages = list(filter(vaildRule, self.messages))
