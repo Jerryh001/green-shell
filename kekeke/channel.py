@@ -759,6 +759,20 @@ class Channel:
 
         await self.resetMessages(isValid)
 
+    @command.command(safe=True, help='.cina\n刪掉訂閱哥的訊息')
+    async def cina(self, message: Message, *args):
+        forbidden_list = redis.sunion("kekeke::bot::detector::youtube::video", "kekeke::bot::detector::youtube::channel", "kekeke::bot::detector::youtube::playlist")
+        forbidden_IDs = set()
+        for message in self.messages:
+            for keyword in forbidden_list:
+                if keyword in message.content:
+                    forbidden_IDs.add(message.user.ID)
+
+        def isValid(m: Message) -> bool:
+            return m.user.ID not in forbidden_IDs
+
+        await self.resetMessages(isValid)
+
     @command.command(help=".ban <使用者>\n發起封鎖特定使用者投票")
     async def ban(self, message: Message, *args):
         target: User = message.metionUsers[0]
