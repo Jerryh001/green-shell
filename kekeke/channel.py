@@ -781,7 +781,7 @@ class Channel:
         if target.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
             await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌使用者{target}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
             return
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "F4226944900E8FBABF626D75D000F745", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "73CE9D9761A300BE8F1E266AEC4447FE", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForForbid"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
@@ -796,7 +796,7 @@ class Channel:
             if target.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):
                 await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❌使用者{target}具有成員以上身分，無法執行", metionUsers=[message.user]), showID=False)
                 return
-            _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "F4226944900E8FBABF626D75D000F745", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForBurn"])
+            _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "73CE9D9761A300BE8F1E266AEC4447FE", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForBurn"])
             _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
             _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", target.color if target.color else None, target.ID, target.nickname, target.ID])
@@ -957,7 +957,7 @@ class Channel:
 
     @command.command(safe=True, help='.pluscheck\n用一種不科學的方法檢查有幾個人裝kekeke plus')
     async def pluscheck(self, message: Message, *args):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "F4226944900E8FBABF626D75D000F745", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForNormal"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "73CE9D9761A300BE8F1E266AEC4447FE", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "createVotingForNormal"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.vote.NormalConfig/2691735772", ["com.liquable.hiroba.gwt.client.vote.NormalConfig$DurationConfig/1199471335", 0, "com.liquable.hiroba.gwt.client.vote.MultipleChoiceConfig/1007198302", 0])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", None, self.user.ID, self.user.nickname, self.user.ID])
@@ -1002,21 +1002,21 @@ class Channel:
             self.timeout = asyncio.get_event_loop().create_task(self.SelfTimeout())
 
     async def vote(self, voteid: str, voteoption: str = "__i18n_forbid"):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "F4226944900E8FBABF626D75D000F745", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "73CE9D9761A300BE8F1E266AEC4447FE", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "voteByPermission"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
         _payload.AddPara("java.util.Set", ["java.util.HashSet/3273092938", "https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "java.lang.String/2004016611", voteoption], regonly=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
     async def banCommit(self, voteid: str):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "F4226944900E8FBABF626D75D000F745", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyForbidByVoting"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "73CE9D9761A300BE8F1E266AEC4447FE", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyForbidByVoting"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
         _payload.AddPara("com.liquable.hiroba.gwt.client.vote.ForbidOption/647536008", [0], rawpara=True)
         await self.post(payload=_payload.string, url=self._vote_url)
 
     async def burnoutCommit(self, voteid: str):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "F4226944900E8FBABF626D75D000F745", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyBurnByVoting"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "73CE9D9761A300BE8F1E266AEC4447FE", "com.liquable.hiroba.gwt.client.vote.IGwtVoteService", "applyBurnByVoting"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("java.lang.String/2004016611", [voteid], regonly=True)
         for _ in range(10):
