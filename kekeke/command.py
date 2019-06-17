@@ -62,7 +62,7 @@ def command(*, safe: bool = False, alias: str = None, authonly: bool = False, he
                     panding = asyncio.ensure_future(runLater(job))
                     self._log.info(f"{message.user}即將執行危險指令{func_name}")
                     self.pandingCommands.append(panding)
-                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❗【危】{message.user}即將執行{func_name}，輸入.stop可以強制終止", metionUsers=list(self.users)), showID=False)
+                    await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=f"❗【危】{message.user}即將執行{func_name}，輸入.stop可以強制終止"), showID=False)
                     result = await panding
                     try:
                         self.pandingCommands.remove(panding)
