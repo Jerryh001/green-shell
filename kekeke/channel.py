@@ -51,7 +51,7 @@ class Channel:
     def __init__(self, name: str, mode: BotType = BotType.observer):
         self.mode = mode
         self.name = name
-        self.user = User(f'{("小小綠盾" if self.mode == self.BotType.training else "綠盾防禦系統")}#Bot', anchorUsername="__BOT__")
+        self.user = User(f'{("小小綠盾" if self.mode == self.BotType.training else "綠盾防禦系統")}#Bot')
         self._log = logging.getLogger((f"{__name__}@{self.name}"))
         self._session: aiohttp.ClientSession = None
         self.ws: aiohttp.ClientWebSocketResponse = None
@@ -496,6 +496,8 @@ class Channel:
             self._log.error(e, exc_info=True)
 
     async def sendMessage(self, message: Message, *, showID=True, escape=True):
+        if message.user.ID != self.user.ID:
+            return
         message_obj = {"senderPublicId": message.user.ID, "senderNickName": (f"{message.user.ID[:5]}#" if showID else "") + message.user.nickname, "anchorUsername": message.user.anchorUsername, "content": html.escape(message.content) if escape else message.content, "date": str(int(message.time.timestamp() * 1000)), "eventType": message.mtype.value, "payload": message.payload}
         if message.user.color:
             message_obj["senderColorToken"] = message.user.color
@@ -962,6 +964,7 @@ class Channel:
         await self.post(payload=_payload.string, url=self._vote_url)
 
     async def resetMessages(self, vaildRule):
+        return
         while self.pauseListen:
             await asyncio.sleep(0)
         validmessages = list(filter(vaildRule, self.messages))
