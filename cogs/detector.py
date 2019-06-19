@@ -133,7 +133,7 @@ class Detector(commands.Cog):
             for embed in embedlist:
                 self.lastMessages[c.name] = c.messages[0]
                 if redis.sismember("kekeke::bot::global::silentUsers", embed.footer.text):
-                    self._log.info(f"偵測到洗版仔{embed.footer.text}，但是沒空上線")
+                    self._log.info(f"偵測到洗版仔{embed.footer.text}在{embed.author.name}出現")
                     # asyncio.get_event_loop().create_task(self.autoDefend(embed.author.name))
                 else:
                     if redis.sismember("discordbot::overseechannels", embed.author.name):

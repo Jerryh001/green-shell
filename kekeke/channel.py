@@ -157,12 +157,12 @@ class Channel:
             await self.updateKerma()
             if self.mode == self.BotType.training and self.kerma >= 160:
                 redis.smove("kekeke::bot::training::GUIDs::using", "kekeke::bot::GUIDpool", self.GUID)
-                self._log.info(f"GUID:{self.GUID}的KERMA已達80，尋找新GUID並重新連線")
+                self._log.info(f"GUID:{self.GUID}的KERMA已達160，尋找新GUID並重新連線")
                 self.GUID = self.getGUID()
                 break
             if self.mode == self.BotType.defender and self.kerma < 160:
                 redis.smove("kekeke::bot::GUIDpool::using", "kekeke::bot::training::GUIDs", self.GUID)
-                self._log.error(f"GUID:{self.GUID}的KERMA不足80，尋找新GUID並重新連線")
+                self._log.error(f"GUID:{self.GUID}的KERMA不足160，尋找新GUID並重新連線")
                 self.GUID = self.getGUID()
                 break
             await asyncio.sleep(300)
