@@ -80,6 +80,26 @@ class Monitor(commands.Cog):
             self.overseeing_list.pop(name, None)
 
     @commands.command()
+    async def run(self, ctx: commands.Context):
+        for name in redis.smembers("kekeke::bot::protectchannels"):
+            self.overseeing_list[name] = self.bot.loop.create_task(KMonitor(name, None, self.kekeke.kbot).Oversee(True))
+            try:
+                await self.overseeing_list[name]
+            except asyncio.CancelledError:
+                await self.kekeke.kbot.unSubscribe(name)
+            except ValueError:
+                await self.kekeke.kbot.unSubscribe(name)
+                logging.info(f"{name}可能為主播廣場")
+                await self.stdout.send(f"`{name}`可能為主播廣場")
+            except Exception as e:
+                logging.error(f"監視{name}時發生錯誤:")
+                logging.error(e, exc_info=True)
+                await self.stdout.send(f"監視`{name}`時發生錯誤")
+            finally:
+                self.overseeing_list.pop(name, None)
+        logging.info("全部發送完成")
+
+    @commands.command()
     async def sendall(self, ctx: commands.Context, *, content: str):
         for channel in self.kekeke.kbot.channels.values():
             await channel.say(content)

@@ -106,12 +106,20 @@ class Channel:
             await self.updateFlags(True)
             await self.initMessages(self.name)
             await self.updateUsers()
-            asyncio.get_event_loop().create_task(self.showLogo())
+            await self.showLogo()
 
         if self.mode == self.BotType.defender:
             self.timeout = asyncio.get_event_loop().create_task(self.SelfTimeout())
 
-        self.connectEvents = asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
+        self.connectEvents = None  # asyncio.get_event_loop().create_task(asyncio.wait({self.listen(), self.keepAlive()}))
+
+        await self.speakLastwords()
+        await self.Close()
+
+    async def speakLastwords(self):
+        ms = ["大家好，這裡是綠盾", "這個版會接收到這個訊息，是因為綠盾曾經在這裡上線過", "前幾天發生了些問題，因此本系統以後再也無法使用", "如果有興趣知道背後的故事，可以看看這個： https://hackmd.io/Pk2IbFrVTc2N5WWRVOJEfg", "大家再見。"]
+        for m in ms:
+            await self.sendMessage(Message(mtype=Message.MessageType.chat, user=self.user, content=m), showID=False)
 
     async def SelfTimeout(self):
         try:
@@ -189,6 +197,7 @@ class Channel:
                 if redis.smove("kekeke::bot::training::GUIDs", "kekeke::bot::training::GUIDs::using", guid):
                     return guid
         elif self.mode == self.BotType.defender:
+            return "ba08f667-f3ff-4010-bf03-70e7ed3db90b"
             while True:
                 guid = redis.srandmember("kekeke::bot::GUIDpool")
                 if not guid:
@@ -790,7 +799,7 @@ class Channel:
         await self.post(payload=_payload.string, url=self._vote_url)
 
     @command.command(help='.burn <使用者>\n發起燒毀特定使用者KERMA的投票')
-    async def burn(self, message: Message, *args): 
+    async def burn(self, message: Message, *args):
         if len(message.metionUsers) > 0:
             target: User = message.metionUsers[0]
             if target.ID in redis.sunion(f"{self.redisGlobalPerfix}auth", f"{self.redisPerfix}auth", f"{self.redisPerfix}members"):

@@ -74,6 +74,8 @@ class Monitor(object):
     async def Oversee(self, defender=False):
         self._log.info(f"開始監視{self.name}")
         await self.bot.subscribe(self.name, defender)
+        if defender:
+            return
         self.channel: Channel = self.bot.channels[self.name]
         if self.stdout:
             last_time = await self.GetLastMessageTime()
