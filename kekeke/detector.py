@@ -30,7 +30,7 @@ class Channel(object):
         self.population = 0
 
 
-_HP_message_payload = GWTpayload.GWTPayload(["https://kekeke.cc/com.liquable.hiroba.home.gwt.HomeModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLatestSquares"])
+_HP_message_payload = GWTpayload.GWTPayload(["https://kekeke.cc/com.liquable.hiroba.home.gwt.HomeModule/", "53C1F77EBD20061FF6DAD5315A60546C", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLatestSquares"])
 
 
 async def GetHPMessages() -> List[Channel]:
