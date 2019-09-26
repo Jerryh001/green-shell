@@ -199,7 +199,7 @@ class Channel:
             return redis.get(self.redisPerfix + "botGUID")
 
     async def subscribe(self):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53C1F77EBD20061FF6DAD5315A60546C", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "startSquare"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.square.StartSquareRequest/2186526774", [self.GUID if self.GUID else None, None, "com.liquable.gwt.transport.client.Destination/2061503238", f"/topic/{self.name}"])
         while True:
             data = await self.post(payload=_payload.string)
@@ -224,7 +224,7 @@ class Channel:
         self._log.info(f"subscribe {self.name}")
 
     async def initMessages(self, channel: str):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLeftMessages"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53C1F77EBD20061FF6DAD5315A60546C", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getLeftMessages"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
 
         data = await self.post(payload=_payload.string)
@@ -339,7 +339,7 @@ class Channel:
         await self.updateUsername()
 
     async def updateUsers(self) -> typing.Set[User]:
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53C1F77EBD20061FF6DAD5315A60546C", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "getCrowd"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         j = await self.post(payload=_payload.string)
         new_users = set()
@@ -594,7 +594,7 @@ class Channel:
         thumb = redis.hgetall(f"{self.redisGlobalPerfix}logothumbnailurl")
         if not thumb:
             thumb = await self.convertToThumbnail(url)
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateSquareThumb"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53C1F77EBD20061FF6DAD5315A60546C", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateSquareThumb"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.square.SquareThumb/3372091550", [int(thumb["height"]), thumb["url"], int(thumb["width"])])
         await self.post(payload=_payload.string)
@@ -622,7 +622,7 @@ class Channel:
         return None
 
     async def rename(self, user: User, newname: str):
-        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53263EDF7F9313FDD5BD38B49D3A7A77", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
+        _payload = GWTPayload(["https://kekeke.cc/com.liquable.hiroba.square.gwt.SquareModule/", "53C1F77EBD20061FF6DAD5315A60546C", "com.liquable.hiroba.gwt.client.square.IGwtSquareService", "updateNickname"])
         _payload.AddPara("com.liquable.gwt.transport.client.Destination/2061503238", [f"/topic/{self.name}"])
         _payload.AddPara("com.liquable.hiroba.gwt.client.chatter.ChatterView/4285079082", ["com.liquable.hiroba.gwt.client.square.ColorSource/2591568017", user.color if user.color != "" else None, user.ID, newname, user.ID])
         await self.post(payload=_payload.string)
